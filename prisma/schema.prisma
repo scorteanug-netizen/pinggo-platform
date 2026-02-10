@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum UserGlobalRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum LeadStatus {
+  NEW
+  OPEN
+  QUALIFIED
+  NOT_QUALIFIED
+  SPAM
+  ARCHIVED
+}
+
+enum LeadSourceType {
+  WEBHOOK
+  FORM
+  CRM
+  WHATSAPP
+  API
+  MANUAL
+  IMPORT
+  EMAIL
+}
+
+enum SLAStageInstanceStatus {
+  RUNNING
+  STOPPED
+  BREACHED
+}
+
+model Workspace {
+  id            String             @id @default(cuid())
+  name          String
+  createdAt     DateTime           @default(now())
+  disabledAt    DateTime?
+  memberships   Membership[]
+  leads         Lead[]
+  leadEvents    LeadEvent[]
+  flows         Flow[]
+  slaStages     SLAStageInstance[]
+  notifications Notification[]
+  integrations  Integration[]
+  settings      WorkspaceSettings?
+
+  @@index([disabledAt])
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String?
+  globalRole     UserGlobalRole @default(USER)
+  supabaseUserId String?        @unique
+  createdAt      DateTime       @default(now())
+  memberships    Membership[]
+  ownedLeads     Lead[]         @relation("LeadOwner")
+  leadEvents     LeadEvent[]    @relation("LeadEventActor")
+  editedFlows    Flow[]         @relation("FlowLastEditor")
+  notifications  Notification[]
+
+  accounts Account[]
+  sessions Session[]
+}
+
+model Membership {
+  userId      String
+  workspaceId String
+  role        MembershipRole
+  status      MembershipStatus @default(ACTIVE)
+  invitedAt   DateTime?
+  acceptedAt  DateTime?
+  disabledAt  DateTime?
+  createdAt   DateTime       @default(now())
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([workspaceId, status])
+  @@index([userId, status])
+}
+
+model Lead {
+  id                String             @id @default(cuid())
+  workspaceId       String
+  sourceType        LeadSourceType
+  externalId        String?
+  status            LeadStatus         @default(NEW)
+  ownerUserId       String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ownerUser         User?              @relation("LeadOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  identity          LeadIdentity?
+  events            LeadEvent[]
+  slaStageInstances SLAStageInstance[]
+  bookings          Booking[]
+
+  @@index([workspaceId, createdAt])
+  @@index([ownerUserId])
+  @@index([status])
+  @@unique([workspaceId, sourceType, externalId])
+}
+
+model LeadIdentity {
+  leadId  String  @id
+  name    String?
+  email   String?
+  phone   String?
+  company String?
+  meta    Json?
+  lead    Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model LeadEvent {
+  id                  String             @id @default(cuid())
+  workspaceId         String
+  leadId              String
+  type                String
+  payload             Json?
+  createdAt           DateTime           @default(now())
+  actorUserId         String?
+  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead                Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actorUser           User?              @relation("LeadEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  proofStageInstances SLAStageInstance[] @relation("ProofEventToStage")
+
+  @@index([workspaceId, createdAt])
+  @@index([leadId, createdAt])
+  @@index([actorUserId])
+}
+
+model Flow {
+  id                  String               @id @default(cuid())
+  workspaceId         String
+  name                String
+  isActive            Boolean              @default(false)
+  publishedAt         DateTime?
+  lastEditedByUserId  String?
+  config              Json?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  workspace           Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lastEditedByUser    User?                @relation("FlowLastEditor", fields: [lastEditedByUserId], references: [id], onDelete: SetNull)
+  slaStageDefinitions SLAStageDefinition[]
+  slaStageInstances   SLAStageInstance[]
+  escalationRules     EscalationRule[]
+  defaultForSettings  WorkspaceSettings[]  @relation("DefaultFlow")
+
+  @@index([workspaceId])
+  @@index([workspaceId, isActive])
+  @@index([workspaceId, publishedAt])
+  @@index([lastEditedByUserId])
+}
+
+model WorkspaceSettings {
+  workspaceId          String    @id
+  businessHoursEnabled Boolean   @default(true)
+  timezone             String    @default("Europe/Bucharest")
+  schedule             Json?
+  defaultFlowId        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultFlow          Flow?     @relation("DefaultFlow", fields: [defaultFlowId], references: [id], onDelete: SetNull)
+
+  @@index([defaultFlowId])
+}
+
+model SLAStageDefinition {
+  id                   String  @id @default(cuid())
+  flowId               String
+  key                  String
+  name                 String
+  targetMinutes        Int
+  businessHoursEnabled Boolean @default(false)
+  stopOnProofTypes     Json?
+  flow                 Flow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, key])
+  @@index([flowId])
+}
+
+model SLAStageInstance {
+  id           String                 @id @default(cuid())
+  workspaceId  String
+  leadId       String
+  flowId       String
+  stageKey     String
+  startedAt    DateTime
+  dueAt        DateTime
+  stoppedAt    DateTime?
+  breachedAt   DateTime?
+  status       SLAStageInstanceStatus @default(RUNNING)
+  stopReason   String?
+  proofEventId String?
+  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead         Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  flow         Flow                   @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  proofEvent   LeadEvent?             @relation("ProofEventToStage", fields: [proofEventId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, dueAt])
+  @@index([leadId, status, dueAt])
+  @@index([flowId, stageKey])
+  @@index([proofEventId])
+}
+
+model EscalationRule {
+  id                String  @id @default(cuid())
+  flowId            String
+  stageKey          String
+  remindAtPct       Int
+  reassignAtPct     Int
+  managerAlertAtPct Int
+  enabled           Boolean @default(true)
+  flow              Flow    @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, stageKey])
+  @@index([flowId])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String?
+  type        String
+  title       String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([userId, readAt])
+}
+
+model Booking {
+  id        String    @id @default(cuid())
+  leadId    String
+  provider  String
+  eventId   String?
+  startAt   DateTime?
+  endAt     DateTime?
+  meetLink  String?
+  createdAt DateTime  @default(now())
+  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model Integration {
+  id          String    @id @default(cuid())
+  workspaceId String
+  type        String
+  config      Json?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, type])
+  @@index([workspaceId])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
