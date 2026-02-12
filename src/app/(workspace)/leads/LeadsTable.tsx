@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
 export type LeadsTableRow = {
   id: string;
@@ -18,13 +19,14 @@ type LeadsTableProps = {
   rows: LeadsTableRow[];
 };
 
-function statusBadgeClass(status: string, breached: boolean) {
-  if (breached) return "bg-rose-100 text-rose-700";
-  if (status === "Calificat") return "bg-emerald-100 text-emerald-700";
-  if (status === "Neeligibil") return "bg-slate-200 text-slate-700";
-  if (status === "Spam") return "bg-rose-100 text-rose-700";
-  if (status === "Arhivat") return "bg-slate-100 text-slate-600";
-  return "bg-orange-100 text-orange-700";
+function getStatusBadgeVariant(status: string, breached: boolean): "gray" | "orange" | "green" | "red" | "blue" {
+  if (breached) return "red";
+  if (status === "Calificat") return "green";
+  if (status === "Neeligibil") return "gray";
+  if (status === "Spam") return "red";
+  if (status === "Arhivat") return "gray";
+  if (status === "Deschis") return "blue";
+  return "orange"; // Default for "Nou" and others
 }
 
 export function LeadsTable({ rows }: LeadsTableProps) {
@@ -67,9 +69,9 @@ export function LeadsTable({ rows }: LeadsTableProps) {
               <td className="px-3 py-3">{row.currentStage}</td>
               <td className="px-3 py-3">{row.nextDueAt}</td>
               <td className="px-3 py-3">
-                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeClass(row.status, row.breached)}`}>
+                <Badge variant={getStatusBadgeVariant(row.status, row.breached)}>
                   {row.status}
-                </span>
+                </Badge>
               </td>
             </tr>
           ))}

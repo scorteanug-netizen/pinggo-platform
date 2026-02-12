@@ -24,7 +24,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
           Lead: {lead.identity?.name ?? lead.identity?.email ?? lead.id.slice(0, 8)}
         </h1>
         <Button variant="outline" asChild>

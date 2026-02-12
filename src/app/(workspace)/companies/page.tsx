@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Building2, Users, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { CreateCompanyForm } from "./CreateCompanyForm";
@@ -94,11 +97,20 @@ export default async function CompaniesPage({
     leadEventUpdates.map((item) => [item.workspaceId, item._max.createdAt])
   );
 
+  // Calculate stats from real data
+  const stats = {
+    totalCompanies: companies.length,
+    totalUsers: companies.reduce((sum, company) => sum + company._count.memberships, 0),
+    activeCompanies: companies.filter((company) => !company.disabledAt).length,
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header cu icon */}
       <PageHeader
         title="Companii"
         subtitle="Creeaza compania prima data, apoi invita userii in compania potrivita."
+        icon={Building2}
         actions={
           canManageCompanyStatus ? (
             <Button asChild variant={showDisabled ? "default" : "outline"} size="sm">
@@ -110,7 +122,33 @@ export default async function CompaniesPage({
         }
       />
 
-      <SectionCard title="Creeaza companie" description="Doar SUPER_ADMIN poate crea companii noi.">
+      {/* Stat Cards - REAL DATA */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          icon={Building2}
+          label="Total Companii"
+          value={stats.totalCompanies}
+        />
+
+        <StatCard
+          icon={Users}
+          label="Total Useri"
+          value={stats.totalUsers}
+        />
+
+        <StatCard
+          icon={TrendingUp}
+          label="Companii Active"
+          value={stats.activeCompanies}
+          helper={`${stats.totalCompanies - stats.activeCompanies} dezactivate`}
+        />
+      </div>
+
+      <SectionCard
+        title="Creeaza companie"
+        description="Doar SUPER_ADMIN poate crea companii noi."
+        borderColor="orange"
+      >
         <CreateCompanyForm />
       </SectionCard>
 
@@ -121,6 +159,7 @@ export default async function CompaniesPage({
             ? "Vizualizare completa: companii active si dezactivate."
             : "Companiile active din platforma."
         }
+        borderColor="orange"
       >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full border-collapse text-sm">
@@ -154,15 +193,9 @@ export default async function CompaniesPage({
                     <tr key={company.id} className="border-t border-slate-200">
                       <td className="px-3 py-2 text-slate-800">{company.name}</td>
                       <td className="px-3 py-2">
-                        <span
-                          className={
-                            isDisabled
-                              ? "inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
-                              : "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
-                          }
-                        >
+                        <Badge variant={isDisabled ? "gray" : "green"}>
                           {isDisabled ? "Dezactivata" : "Activa"}
-                        </span>
+                        </Badge>
                       </td>
                       <td className="px-3 py-2 text-slate-700">{company._count.memberships}</td>
                       <td className="px-3 py-2 text-slate-700">{leadCountByWorkspaceId.get(company.id) ?? 0}</td>

@@ -26,7 +26,7 @@ export default function AppDashboardPage() {
           <Button
             asChild
             variant="outline"
-            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+            className="border-orange-200 text-orange-700 font-extrabold hover:bg-orange-50 hover:text-orange-800"
           >
             <Link href="/app/flows">Vezi fluxuri</Link>
           </Button>

@@ -234,7 +234,7 @@ function getTimelineToneClasses(tone: TimelineTone) {
 }
 
 function stageStatusBadge(status: SLAStageInstanceStatus) {
-  if (status === "RUNNING") return "bg-orange-100 text-orange-700";
+  if (status === "RUNNING") return "bg-orange-100 text-orange-700 font-extrabold";
   if (status === "STOPPED") return "bg-emerald-100 text-emerald-700";
   return "bg-rose-100 text-rose-700";
 }
@@ -691,7 +691,7 @@ export default async function LeadDetailPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Detalii lead</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">Detalii lead</h1>
           <p className="text-sm text-slate-600">Vizualizare SLA, timeline si actiuni rapide.</p>
         </div>
         <Button variant="outline" asChild>

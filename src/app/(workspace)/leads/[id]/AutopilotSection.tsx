@@ -61,7 +61,7 @@ function stateBadgeClass(state: AutopilotSnapshot["state"]) {
   if (state === "HANDOVER_REQUESTED") return "bg-rose-100 text-rose-700";
   if (state === "BOOKING_OFFERED") return "bg-emerald-100 text-emerald-700";
   if (state === "IDLE") return "bg-slate-100 text-slate-600";
-  return "bg-orange-100 text-orange-700";
+  return "bg-orange-100 text-orange-700 font-extrabold";
 }
 
 export function AutopilotSection({

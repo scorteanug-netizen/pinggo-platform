@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Bot,
   Building2,
   LayoutDashboard,
   PlugZap,
@@ -21,11 +22,13 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   permission: PermissionKey;
+  badge?: string;
 };
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "canViewDashboard" },
   { href: "/leads", label: "Leaduri", icon: Users, permission: "canViewLeads" },
+  { href: "/autopilot", label: "Autopilot", icon: Bot, permission: "canViewLeads", badge: "NOU" },
   { href: "/companies", label: "Companii", icon: Building2, permission: "canViewCompanies" },
   { href: "/users", label: "Useri", icon: UserCog, permission: "canViewUsers" },
   { href: "/flows", label: "Fluxuri", icon: Workflow, permission: "canViewFlows" },
@@ -38,7 +41,7 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function SidebarItem({ href, label, icon: Icon }: NavItem) {
+function SidebarItem({ href, label, icon: Icon, badge }: NavItem) {
   const pathname = usePathname();
   const active = isActive(pathname, href);
 
@@ -68,7 +71,12 @@ function SidebarItem({ href, label, icon: Icon }: NavItem) {
       >
         <Icon className="h-4 w-4" />
       </span>
-      <span>{label}</span>
+      <span className="flex-1">{label}</span>
+      {badge && (
+        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -124,12 +132,17 @@ export function WorkspaceMobileNav({ permissions }: WorkspaceMobileNavProps) {
             className={cn(
               "flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200",
               active
-                ? "border-orange-200 bg-orange-50 text-orange-700 shadow-[0_6px_14px_rgba(255,86,33,0.16)]"
+                ? "border-orange-200 bg-orange-50 text-orange-700 font-extrabold shadow-[0_6px_14px_rgba(255,86,33,0.16)]"
                 : "border-slate-200 bg-white text-slate-600 hover:border-orange-100 hover:bg-orange-50/60 hover:text-slate-900"
             )}
           >
             <Icon className="h-4 w-4" />
             {item.label}
+            {item.badge && (
+              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600">
+                {item.badge}
+              </span>
+            )}
           </Link>
         );
       })}

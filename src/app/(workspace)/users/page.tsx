@@ -1,7 +1,10 @@
 import { MembershipStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { UserCog, Shield, Users, UserCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { InviteUserForm } from "./InviteUserForm";
@@ -98,21 +101,65 @@ export default async function UsersPage() {
     }));
   });
 
+  // Calculate stats from real data - count unique users and roles
+  const uniqueUserIds = new Set(users.map((user) => user.id));
+  const allMemberships = users.flatMap((user) => user.memberships);
+  const stats = {
+    totalUsers: uniqueUserIds.size,
+    admins: allMemberships.filter((m) => m.role === "ADMIN").length,
+    managers: allMemberships.filter((m) => m.role === "MANAGER").length,
+    agents: allMemberships.filter((m) => m.role === "AGENT").length,
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header cu icon */}
       <PageHeader
         title="Useri"
         subtitle="Creeaza compania prima data, apoi invita userul si alege compania lui."
+        icon={UserCog}
       />
+
+      {/* Stat Cards - REAL DATA */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={Users}
+          label="Total Useri"
+          value={stats.totalUsers}
+        />
+
+        <StatCard
+          icon={Shield}
+          label="Admini"
+          value={stats.admins}
+        />
+
+        <StatCard
+          icon={UserCog}
+          label="Manageri"
+          value={stats.managers}
+        />
+
+        <StatCard
+          icon={UserCheck}
+          label="Agenți"
+          value={stats.agents}
+        />
+      </div>
 
       <SectionCard
         title="Invita user"
         description="Email, rol si companie sunt obligatorii pentru alocarea corecta."
+        borderColor="orange"
       >
         <InviteUserForm workspaces={workspaces.map((workspace) => ({ id: workspace.id, name: workspace.name }))} />
       </SectionCard>
 
-      <SectionCard title="Lista useri" description="Toate conturile si compania din care fac parte.">
+      <SectionCard
+        title="Lista useri"
+        description="Toate conturile si compania din care fac parte."
+        borderColor="orange"
+      >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full border-collapse text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -139,20 +186,32 @@ export default async function UsersPage() {
                     <td className="px-3 py-2 text-slate-800">{row.name || "-"}</td>
                     <td className="px-3 py-2 text-slate-700">{row.email}</td>
                     <td className="px-3 py-2 text-slate-700">{row.company || "-"}</td>
-                    <td className="px-3 py-2 text-slate-700">{row.role}</td>
+                    <td className="px-3 py-2">
+                      {row.role.includes("OWNER") ? (
+                        <Badge variant="orange">OWNER</Badge>
+                      ) : row.role.includes("ADMIN") ? (
+                        <Badge variant="gray">ADMIN</Badge>
+                      ) : row.role.includes("MANAGER") ? (
+                        <Badge variant="gray">MANAGER</Badge>
+                      ) : row.role.includes("AGENT") ? (
+                        <Badge variant="gray">AGENT</Badge>
+                      ) : (
+                        <span className="text-xs text-slate-700">{row.role}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       {row.status ? (
-                        <span
-                          className={
+                        <Badge
+                          variant={
                             row.status === "ACTIVE"
-                              ? "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                              ? "green"
                               : row.status === "INVITED"
-                                ? "inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
-                                : "inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                                ? "orange"
+                                : "gray"
                           }
                         >
                           {STATUS_LABEL[row.status]}
-                        </span>
+                        </Badge>
                       ) : (
                         <span className="text-xs text-slate-500">-</span>
                       )}

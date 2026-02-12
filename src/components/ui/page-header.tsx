@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
 type BreadcrumbItem = {
   label: string;
@@ -9,6 +10,9 @@ type BreadcrumbItem = {
 type PageHeaderProps = {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  icon?: LucideIcon;
+  iconBgColor?: string;
+  iconColor?: string;
   actions?: React.ReactNode;
   breadcrumbs?: BreadcrumbItem[];
   activeCompanyName?: string | null;
@@ -18,6 +22,9 @@ type PageHeaderProps = {
 export function PageHeader({
   title,
   subtitle,
+  icon: Icon,
+  iconBgColor = "bg-orange-100",
+  iconColor = "text-orange-600",
   actions,
   breadcrumbs,
   activeCompanyName,
@@ -43,17 +50,24 @@ export function PageHeader({
       ) : null}
 
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-            {activeCompanyName ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-700">
-                Companie activa:
-                <span className="font-semibold text-orange-800">{activeCompanyName}</span>
-              </span>
-            ) : null}
+        <div className="flex items-start gap-3">
+          {Icon && (
+            <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", iconBgColor)}>
+              <Icon className={cn("w-6 h-6", iconColor)} />
+            </div>
+          )}
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-fraunces font-extrabold text-slate-900">{title}</h1>
+              {activeCompanyName ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-extrabold text-orange-700">
+                  Companie activa:
+                  <span className="font-extrabold text-orange-800">{activeCompanyName}</span>
+                </span>
+              ) : null}
+            </div>
+            {subtitle ? <p className="text-sm text-slate-600">{subtitle}</p> : null}
           </div>
-          {subtitle ? <p className="text-sm text-slate-600">{subtitle}</p> : null}
         </div>
 
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
@@ -61,4 +75,3 @@ export function PageHeader({
     </div>
   );
 }
-

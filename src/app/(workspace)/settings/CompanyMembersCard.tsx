@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { MembershipRole } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyField } from "@/components/ui/copy-field";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,7 @@ export function CompanyMembersCard({ workspaceId, canInvite, members }: CompanyM
     <SectionCard
       title="Membri companie"
       description="Lista membrilor din compania curenta."
+      borderColor="orange"
       contentClassName="space-y-4"
     >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -111,7 +113,21 @@ export function CompanyMembersCard({ workspaceId, canInvite, members }: CompanyM
                   <tr key={member.userId} className="border-t border-slate-200">
                     <td className="px-3 py-2 text-slate-700">{member.name || "-"}</td>
                     <td className="px-3 py-2 text-slate-700">{member.email}</td>
-                    <td className="px-3 py-2 text-slate-700">{member.role}</td>
+                    <td className="px-3 py-2">
+                      <Badge
+                        variant={
+                          member.role === "OWNER"
+                            ? "orange"
+                            : member.role === "ADMIN"
+                              ? "gray"
+                              : member.role === "MANAGER"
+                                ? "gray"
+                                : "gray"
+                        }
+                      >
+                        {member.role}
+                      </Badge>
+                    </td>
                     <td className="px-3 py-2 text-slate-500">
                       {new Date(member.createdAt).toLocaleDateString("ro-RO")}
                     </td>

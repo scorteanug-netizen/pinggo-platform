@@ -16,7 +16,7 @@ export function AppTopbar({ email, bypassed }: AppTopbarProps) {
         <span className="hidden text-sm font-medium text-slate-600 sm:inline">
           {displayEmail}
         </span>
-        <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700">
+        <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-extrabold text-orange-700">
           {bypassed ? "Demo mode" : "Conectat"}
         </span>
         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white">

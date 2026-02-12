@@ -511,7 +511,7 @@ export function FlowWizardBuilder({
         >
           <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.2)]">
             <div className="space-y-1 border-b border-slate-200 px-5 py-4">
-              <h2 className="text-lg font-semibold tracking-tight text-slate-900">Rezumat publicare</h2>
+              <h2 className="text-lg font-bold tracking-tight text-slate-900">Rezumat publicare</h2>
               <p className="text-sm text-slate-600">
                 Verifica configuratia inainte de publicare.
               </p>
@@ -678,7 +678,7 @@ export function FlowWizardBuilder({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{flowName}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{flowName}</h1>
           <p className="text-sm text-slate-600">
             Wizard builder fara drag-drop. Pas curent: {selectedStepLabel}.
           </p>
@@ -696,7 +696,7 @@ export function FlowWizardBuilder({
           <span
             className={
               saveStatus === "saving"
-                ? "inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-700"
+                ? "inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-1 text-xs font-extrabold text-orange-700"
                 : saveStatus === "error"
                   ? "inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700"
                   : "inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
@@ -756,7 +756,7 @@ export function FlowWizardBuilder({
                   onClick={() => setSelectedStep(step.key)}
                   className={
                     active
-                      ? "flex w-full items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left text-sm font-medium text-orange-700"
+                      ? "flex w-full items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-left text-sm font-extrabold text-orange-700"
                       : "flex w-full items-center gap-2 rounded-xl border border-transparent px-3 py-2 text-left text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }
                 >

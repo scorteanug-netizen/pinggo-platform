@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { PlugZap, CheckCircle, Link2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CopyField } from "@/components/ui/copy-field";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import {
   ensureWorkspaceWebhookIntegration,
@@ -13,15 +16,9 @@ import { WebhookRotateTokenButton } from "./WebhookRotateTokenButton";
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <span
-      className={
-        active
-          ? "rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700"
-          : "rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
-      }
-    >
+    <Badge variant={active ? "green" : "gray"}>
       {active ? "Activ" : "Neconfigurat"}
-    </span>
+    </Badge>
   );
 }
 
@@ -51,35 +48,80 @@ export default async function IntegrationsPage() {
       title: "Email forward",
       description: "Redirectionare e-mail catre pipeline de leaduri.",
       active: status.emailForward,
+      borderColor: "orange" as const,
     },
     {
       title: "WhatsApp provider",
       description: "Conectare provider WhatsApp pentru dovada si automatizari.",
       active: status.whatsappProvider,
+      borderColor: "orange" as const,
     },
     {
       title: "Slack",
       description: "Notificari operationale si alerte de escaladare in Slack.",
       active: status.slack,
+      borderColor: "orange" as const,
     },
     {
       title: "Google Calendar",
       description: "Sincronizare booking-uri si link-uri de meeting.",
       active: status.googleCalendar,
+      borderColor: "orange" as const,
     },
   ];
 
+  // Calculate stats from integration status
+  const activeIntegrationsCount = [
+    status.webhookInbound,
+    status.emailForward,
+    status.whatsappProvider,
+    status.slack,
+    status.googleCalendar,
+  ].filter(Boolean).length;
+
+  const stats = {
+    activeIntegrations: activeIntegrationsCount,
+    webhookEvents: webhookIngestStatus.totalEventsLast24h,
+    lastLeadId: webhookIngestStatus.lastReceivedLeadId,
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header cu icon */}
       <PageHeader
         title="Integrari"
         subtitle="Configureaza canalele de ingestie si conexiunile externe pentru workspace."
+        icon={PlugZap}
       />
+
+      {/* Stat Cards - REAL DATA */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          icon={PlugZap}
+          label="Integrări Active"
+          value={stats.activeIntegrations}
+        />
+
+        <StatCard
+          icon={CheckCircle}
+          label="Evenimente 24h"
+          value={stats.webhookEvents}
+          helper="prin webhook"
+        />
+
+        <StatCard
+          icon={Link2}
+          label="Ultimul Lead"
+          value={stats.lastLeadId ? "Primit" : "-"}
+          helper={stats.lastLeadId || "Niciun lead încă"}
+        />
+      </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <SectionCard
           title="Webhook inbound"
           description="Endpoint pentru ingestie leaduri din sisteme externe."
+          borderColor="orange"
           actions={<StatusBadge active={status.webhookInbound} />}
           contentClassName="space-y-4"
         >
@@ -124,6 +166,7 @@ export default async function IntegrationsPage() {
             key={card.title}
             title={card.title}
             description={card.description}
+            borderColor={card.borderColor}
             actions={<StatusBadge active={card.active} />}
           >
             <p className="text-sm text-slate-500">Placeholder MVP. Configurarea va fi adaugata ulterior.</p>

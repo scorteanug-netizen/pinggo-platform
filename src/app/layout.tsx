@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["700", "800", "900"],
+  variable: "--font-fraunces"
+});
 
 export const metadata: Metadata = {
   title: "Pinggo Platform",
@@ -17,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ro">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${fraunces.variable} font-sans`}>
         <Providers>{children}</Providers>
       </body>
     </html>

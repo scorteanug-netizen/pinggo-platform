@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { Settings } from "lucide-react";
 import { prisma } from "@/server/db";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,10 +39,11 @@ export default async function SettingsPage() {
     : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
         title="Setari"
         subtitle="Configureaza workspace-ul, programul de lucru si fluxul implicit pentru leaduri noi."
+        icon={Settings}
         activeCompanyName={settings.workspaceName}
       />
       <SettingsForm initialData={settings} />

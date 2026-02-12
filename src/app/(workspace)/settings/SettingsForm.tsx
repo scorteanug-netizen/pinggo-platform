@@ -113,8 +113,13 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
-      <SectionCard title="Workspace" description="Setari generale pentru echipa curenta." contentClassName="space-y-4">
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <SectionCard
+        title="Workspace"
+        description="Setari generale pentru echipa curenta."
+        borderColor="orange"
+        contentClassName="space-y-4"
+      >
         <div className="space-y-2">
           <Label htmlFor="workspaceName">Nume workspace</Label>
           <Input
@@ -154,6 +159,7 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
       <SectionCard
         title="Program de lucru"
         description="Folosit pentru calculul termenelor cand business hours este activ."
+        borderColor="orange"
         contentClassName="space-y-4"
       >
         <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">

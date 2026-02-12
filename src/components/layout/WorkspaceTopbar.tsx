@@ -90,7 +90,7 @@ export async function WorkspaceTopbar({ bypassed: _bypassed }: WorkspaceTopbarPr
             ) : null}
           </Link>
           <span className="hidden text-sm font-medium text-slate-700 sm:inline">{displayEmail}</span>
-          <span className="rounded-full border border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-2.5 py-1 text-xs font-medium text-orange-700">
+          <span className="rounded-full border border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-2.5 py-1 text-xs font-extrabold text-orange-700">
             {context?.appRole ?? "Conectat"}
           </span>
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-orange-100 bg-white shadow-[0_4px_12px_rgba(255,86,33,0.16)]">

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { LeadSourceType, LeadStatus, MembershipRole, MembershipStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { Users, Clock, TrendingUp, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
 import { listLeadsQuerySchema, type ListLeadsQuery } from "@/lib/validations/leads";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import { prisma } from "@/server/db";
@@ -304,16 +306,57 @@ export default async function LeadsPage({
       : Math.min(leadsResult.page * leadsResult.pageSize, leadsResult.totalCount);
   const visiblePages = getVisiblePages(leadsResult.page, totalPages);
 
+  // DUMMY DATA - Task-uri viitoare vor aduce date reale
+  const stats = {
+    totalLeads: leadsResult.totalCount,
+    newToday: 18,
+    avgTTFT: "8m 32s",
+    activeBreaches: tableRows.filter((row) => row.breached).length,
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Header cu icon */}
       <PageHeader
         title="Leaduri"
         subtitle="Tabel operational cu cautare globala, filtre, paginare si export CSV."
+        icon={Users}
       />
+
+      {/* Stat Cards - DUMMY DATA */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={Users}
+          label="Total Leaduri"
+          value={stats.totalLeads}
+        />
+
+        <StatCard
+          icon={TrendingUp}
+          label="Noi Azi"
+          value={stats.newToday}
+          helper="+12% vs ieri"
+        />
+
+        <StatCard
+          icon={Clock}
+          label="TTFT Mediu"
+          value={stats.avgTTFT}
+          helper="Target: <15m"
+        />
+
+        <StatCard
+          icon={AlertCircle}
+          label="Breach-uri Active"
+          value={stats.activeBreaches}
+          helper="Necesită atenție"
+        />
+      </div>
 
       <SectionCard
         title="Filtre"
         description="Ajusteaza criteriile si aplica pentru a rafina lista de leaduri."
+        borderColor="orange"
       >
         <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
           <input type="hidden" name="page" value="1" />
@@ -444,6 +487,7 @@ export default async function LeadsPage({
       <SectionCard
         title="Lista leaduri"
         description="Click pe rand pentru detalii lead si timeline complet."
+        borderColor="orange"
       >
         {tableRows.length === 0 ? (
           <p className="text-sm text-slate-600">Nu exista leaduri pentru filtrele selectate.</p>
@@ -472,7 +516,7 @@ export default async function LeadsPage({
                   pageNumber === leadsResult.page ? (
                     <span
                       key={pageNumber}
-                      className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 px-3 text-sm font-medium text-orange-700"
+                      className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-orange-200 bg-orange-50 px-3 text-sm font-extrabold text-orange-700"
                     >
                       {pageNumber}
                     </span>
