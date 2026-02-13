@@ -54,13 +54,13 @@ export default async function IntegrationsPage() {
       title: "WhatsApp provider",
       description: "Conectare provider WhatsApp pentru dovada si automatizari.",
       active: status.whatsappProvider,
-      borderColor: "orange" as const,
+      borderColor: "violet" as const,
     },
     {
       title: "Slack",
       description: "Notificari operationale si alerte de escaladare in Slack.",
       active: status.slack,
-      borderColor: "orange" as const,
+      borderColor: "violet" as const,
     },
     {
       title: "Google Calendar",
@@ -86,20 +86,23 @@ export default async function IntegrationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Header cu icon */}
       <PageHeader
         title="Integrari"
         subtitle="Configureaza canalele de ingestie si conexiunile externe pentru workspace."
         icon={PlugZap}
+        iconBgColor="bg-orange-50"
+        iconColor="text-orange-600"
       />
 
       {/* Stat Cards - REAL DATA */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <StatCard
           icon={PlugZap}
           label="Integrări Active"
           value={stats.activeIntegrations}
+          accent="violet"
         />
 
         <StatCard
@@ -107,6 +110,7 @@ export default async function IntegrationsPage() {
           label="Evenimente 24h"
           value={stats.webhookEvents}
           helper="prin webhook"
+          accent="violet"
         />
 
         <StatCard
@@ -114,10 +118,11 @@ export default async function IntegrationsPage() {
           label="Ultimul Lead"
           value={stats.lastLeadId ? "Primit" : "-"}
           helper={stats.lastLeadId || "Niciun lead încă"}
+          accent={stats.lastLeadId ? "green" : "gray"}
         />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard
           title="Webhook inbound"
           description="Endpoint pentru ingestie leaduri din sisteme externe."

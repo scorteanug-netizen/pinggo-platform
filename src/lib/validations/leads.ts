@@ -27,6 +27,7 @@ export const escalateSchema = z.object({
 
 const leadStatusSchema = z.enum(["NEW", "OPEN", "QUALIFIED", "NOT_QUALIFIED", "SPAM", "ARCHIVED"]);
 const leadSourceSchema = z.enum(["WEBHOOK", "FORM", "CRM", "WHATSAPP", "API", "MANUAL", "IMPORT", "EMAIL"]);
+const leadStageSchema = z.enum(["new", "contacted", "qualified", "booked", "closing"]);
 const leadSortSchema = z.enum(["createdAt", "updatedAt", "status", "sourceType"]);
 const leadDirSchema = z.enum(["asc", "desc"]);
 const nonEmptyStringSchema = z.string().trim().min(1);
@@ -45,6 +46,7 @@ export const listLeadsQuerySchema = z
     pageSize: z.coerce.number().int().min(1).max(50).optional(),
     sort: leadSortSchema.optional(),
     dir: leadDirSchema.optional(),
+    stage: leadStageSchema.optional(),
     status: leadStatusSchema.optional(),
     ownerId: nonEmptyStringSchema.optional(),
     source: leadSourceSchema.optional(),
@@ -64,6 +66,7 @@ export const listLeadsQuerySchema = z
     pageSize: query.pageSize ?? 25,
     sort: query.sort ?? "createdAt",
     dir: query.dir ?? "desc",
+    stage: query.stage,
     status: query.status,
     ownerId: query.ownerId ?? query.ownerUserId,
     source: query.source ?? query.sourceType,

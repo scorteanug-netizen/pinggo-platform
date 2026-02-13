@@ -19,13 +19,13 @@ type LeadsTableProps = {
   rows: LeadsTableRow[];
 };
 
-function getStatusBadgeVariant(status: string, breached: boolean): "gray" | "orange" | "green" | "red" | "blue" {
+function getStatusBadgeVariant(status: string, breached: boolean): "gray" | "orange" | "violet" | "green" | "red" {
   if (breached) return "red";
   if (status === "Calificat") return "green";
   if (status === "Neeligibil") return "gray";
   if (status === "Spam") return "red";
   if (status === "Arhivat") return "gray";
-  if (status === "Deschis") return "blue";
+  if (status === "Deschis") return "violet";
   return "orange"; // Default for "Nou" and others
 }
 
@@ -50,7 +50,7 @@ export function LeadsTable({ rows }: LeadsTableProps) {
           {rows.map((row) => (
             <tr
               key={row.id}
-              className="cursor-pointer border-b border-slate-100 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+              className="cursor-pointer border-b border-slate-100 text-sm text-slate-700 transition-colors duration-200 hover:bg-gray-50"
               onClick={() => router.push(`/leads/${row.id}`)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {

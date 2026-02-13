@@ -39,11 +39,13 @@ export default async function SettingsPage() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       <PageHeader
         title="Setari"
         subtitle="Configureaza workspace-ul, programul de lucru si fluxul implicit pentru leaduri noi."
         icon={Settings}
+        iconBgColor="bg-slate-100"
+        iconColor="text-slate-600"
         activeCompanyName={settings.workspaceName}
       />
       <SettingsForm initialData={settings} />

@@ -18,7 +18,7 @@ export function PageScaffold({
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{title}</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{title}</h1>
         <p className="text-sm text-slate-600">{subtitle}</p>
       </div>
 

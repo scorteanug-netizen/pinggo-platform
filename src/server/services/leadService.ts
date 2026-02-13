@@ -64,9 +64,18 @@ export async function addEscalationEvent(
 
 export type LeadSortField = "createdAt" | "updatedAt" | "status" | "sourceType";
 export type LeadSortDirection = Prisma.SortOrder;
+export type LeadStageFilter = "new" | "contacted" | "qualified" | "booked" | "closing";
+
+const FIRST_TOUCH_EVENT_TYPES = [
+  "message_sent",
+  "reply_received",
+  "meeting_created",
+  "call_logged",
+] as const;
 
 type LeadQueryInput = {
   workspaceId: string;
+  stage?: LeadStageFilter;
   status?: LeadStatus;
   source?: LeadSourceType;
   ownerId?: string;
@@ -93,9 +102,62 @@ const leadListInclude = {
   },
 } satisfies Prisma.LeadInclude;
 
+function appendAndFilter(where: Prisma.LeadWhereInput, condition: Prisma.LeadWhereInput) {
+  if (!where.AND) {
+    where.AND = [condition];
+    return;
+  }
+
+  where.AND = Array.isArray(where.AND) ? [...where.AND, condition] : [where.AND, condition];
+}
+
+function buildStageWhereInput(stage: LeadStageFilter): Prisma.LeadWhereInput {
+  switch (stage) {
+    case "new":
+      return {
+        status: LeadStatus.NEW,
+      };
+    case "contacted":
+      return {
+        status: LeadStatus.OPEN,
+        events: {
+          some: {
+            type: {
+              in: [...FIRST_TOUCH_EVENT_TYPES],
+            },
+          },
+        },
+      };
+    case "qualified":
+      return {
+        status: LeadStatus.QUALIFIED,
+      };
+    case "booked":
+      return {
+        events: {
+          some: {
+            type: "meeting_created",
+          },
+        },
+        status: {
+          not: LeadStatus.ARCHIVED,
+        },
+      };
+    case "closing":
+      return {
+        status: LeadStatus.ARCHIVED,
+      };
+    default:
+      return {};
+  }
+}
+
 export function buildLeadWhereInput(filters: LeadQueryInput): Prisma.LeadWhereInput {
   const where: Prisma.LeadWhereInput = { workspaceId: filters.workspaceId };
 
+  if (filters.stage) {
+    appendAndFilter(where, buildStageWhereInput(filters.stage));
+  }
   if (filters.status) where.status = filters.status;
   if (filters.source) where.sourceType = filters.source;
 
@@ -180,6 +242,7 @@ export async function queryLeads(filters: LeadQueryInput & {
 
 export async function listLeads(filters: {
   workspaceId: string;
+  stage?: LeadStageFilter;
   status?: LeadStatus;
   sourceType?: LeadSourceType;
   ownerUserId?: string;
@@ -192,6 +255,7 @@ export async function listLeads(filters: {
 }) {
   const where = buildLeadWhereInput({
     workspaceId: filters.workspaceId,
+    stage: filters.stage,
     status: filters.status,
     source: filters.sourceType,
     ownerId: filters.ownerUserId,

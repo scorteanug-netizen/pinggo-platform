@@ -105,12 +105,14 @@ export default async function CompaniesPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Header cu icon */}
       <PageHeader
         title="Companii"
         subtitle="Creeaza compania prima data, apoi invita userii in compania potrivita."
         icon={Building2}
+        iconBgColor="bg-orange-50"
+        iconColor="text-orange-600"
         actions={
           canManageCompanyStatus ? (
             <Button asChild variant={showDisabled ? "default" : "outline"} size="sm">
@@ -123,17 +125,19 @@ export default async function CompaniesPage({
       />
 
       {/* Stat Cards - REAL DATA */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <StatCard
           icon={Building2}
           label="Total Companii"
           value={stats.totalCompanies}
+          accent="orange"
         />
 
         <StatCard
           icon={Users}
           label="Total Useri"
           value={stats.totalUsers}
+          accent="violet"
         />
 
         <StatCard
@@ -141,6 +145,7 @@ export default async function CompaniesPage({
           label="Companii Active"
           value={stats.activeCompanies}
           helper={`${stats.totalCompanies - stats.activeCompanies} dezactivate`}
+          accent="green"
         />
       </div>
 
@@ -190,7 +195,10 @@ export default async function CompaniesPage({
                   const isDisabled = Boolean(company.disabledAt);
 
                   return (
-                    <tr key={company.id} className="border-t border-slate-200">
+                    <tr
+                      key={company.id}
+                      className="border-t border-slate-200 transition-colors duration-200 hover:bg-gray-50"
+                    >
                       <td className="px-3 py-2 text-slate-800">{company.name}</td>
                       <td className="px-3 py-2">
                         <Badge variant={isDisabled ? "gray" : "green"}>

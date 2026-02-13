@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
       pageSize: searchParams.get("pageSize") ?? undefined,
       sort: searchParams.get("sort") ?? undefined,
       dir: searchParams.get("dir") ?? undefined,
+      stage: searchParams.get("stage") ?? undefined,
       status: searchParams.get("status") ?? undefined,
       ownerId: searchParams.get("ownerId") ?? undefined,
       source: searchParams.get("source") ?? undefined,
@@ -116,6 +117,7 @@ export async function GET(request: NextRequest) {
       viewerRole: membershipRole,
       viewerUserId: userId,
       q: query.q,
+      stage: query.stage,
       status: query.status,
       ownerId: query.ownerId,
       source: query.source,
@@ -247,4 +249,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
-

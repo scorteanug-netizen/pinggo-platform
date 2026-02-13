@@ -12,7 +12,7 @@ type SectionCardProps = {
   description?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
-  borderColor?: "orange" | "none";
+  borderColor?: "orange" | "violet" | "green" | "red" | "gray" | "none";
   className?: string;
   contentClassName?: string;
   hover?: boolean;
@@ -31,17 +31,30 @@ export function SectionCard({
   spacious = false,
 }: SectionCardProps) {
   const hasHeader = Boolean(title || description || actions);
-
-  const borderColorMap = {
-    orange: "border-t-orange-500",
-    none: "",
-  };
-
-  const borderClass = borderColor !== "none" ? `border-t-4 ${borderColorMap[borderColor]}` : "";
-  const hoverClass = hover ? "hover:shadow-lg transition-shadow" : "";
+  const borderClass = borderColor === "none" ? "border-transparent" : "border-slate-200";
+  const hoverAccentClass =
+    borderColor === "violet"
+      ? "hover:border-violet-500 hover:shadow-[0_8px_20px_rgba(139,92,246,0.2)]"
+      : borderColor === "green"
+        ? "hover:border-green-500 hover:shadow-[0_8px_20px_rgba(16,185,129,0.2)]"
+        : borderColor === "red"
+          ? "hover:border-red-500 hover:shadow-[0_8px_20px_rgba(239,68,68,0.2)]"
+          : borderColor === "gray" || borderColor === "none"
+            ? "hover:border-slate-300 hover:shadow-[0_8px_20px_rgba(15,23,42,0.12)]"
+            : "hover:border-orange-500 hover:shadow-[0_8px_20px_rgba(249,115,22,0.2)]";
+  const hoverClass = hover
+    ? cn("transition-all duration-200 hover:-translate-y-0.5", hoverAccentClass)
+    : "";
 
   return (
-    <Card className={cn("rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_28px_rgba(15,23,42,0.06)]", borderClass, hoverClass, className)}>
+    <Card
+      className={cn(
+        "rounded-2xl border-slate-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
+        borderClass,
+        hoverClass,
+        className
+      )}
+    >
       {hasHeader ? (
         <CardHeader className={spacious ? "p-6 pb-4" : "pb-3"}>
           <div className="flex items-start justify-between gap-3">

@@ -26,6 +26,14 @@ const STATUS_OPTIONS: Array<{ value: LeadStatus; label: string }> = [
   { value: "ARCHIVED", label: "Arhivat" },
 ];
 
+const STAGE_OPTIONS = [
+  { value: "new", label: "Nou" },
+  { value: "contacted", label: "Contactate" },
+  { value: "qualified", label: "Calificate" },
+  { value: "booked", label: "Programate" },
+  { value: "closing", label: "Closing" },
+] as const;
+
 const SOURCE_OPTIONS: Array<{ value: LeadSourceType; label: string }> = [
   { value: "WEBHOOK", label: "Webhook" },
   { value: "FORM", label: "Formular" },
@@ -93,6 +101,7 @@ function buildLeadsHref(query: ListLeadsQuery, overrides: Partial<ListLeadsQuery
   const urlQuery = new URLSearchParams();
 
   if (nextQuery.q) urlQuery.set("q", nextQuery.q);
+  if (nextQuery.stage) urlQuery.set("stage", nextQuery.stage);
   if (nextQuery.status) urlQuery.set("status", nextQuery.status);
   if (nextQuery.ownerId) urlQuery.set("ownerId", nextQuery.ownerId);
   if (nextQuery.source) urlQuery.set("source", nextQuery.source);
@@ -139,6 +148,7 @@ export default async function LeadsPage({
     pageSize: getParamValue(params.pageSize),
     sort: getParamValue(params.sort),
     dir: getParamValue(params.dir),
+    stage: getParamValue(params.stage),
     status: getParamValue(params.status),
     ownerId: getParamValue(params.ownerId),
     source: getParamValue(params.source),
@@ -196,6 +206,7 @@ export default async function LeadsPage({
       pageSize: activeQuery.pageSize,
       sort: activeQuery.sort,
       dir: activeQuery.dir,
+      stage: activeQuery.stage,
       status: activeQuery.status,
       ownerId: activeQuery.ownerId,
       source: activeQuery.source,
@@ -287,6 +298,7 @@ export default async function LeadsPage({
 
   const exportQuery = new URLSearchParams();
   if (activeQuery.q) exportQuery.set("q", activeQuery.q);
+  if (activeQuery.stage) exportQuery.set("stage", activeQuery.stage);
   if (activeQuery.status) exportQuery.set("status", activeQuery.status);
   if (activeQuery.ownerId) exportQuery.set("ownerId", activeQuery.ownerId);
   if (activeQuery.source) exportQuery.set("source", activeQuery.source);
@@ -315,20 +327,23 @@ export default async function LeadsPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Header cu icon */}
       <PageHeader
         title="Leaduri"
         subtitle="Tabel operational cu cautare globala, filtre, paginare si export CSV."
         icon={Users}
+        iconBgColor="bg-orange-50"
+        iconColor="text-orange-600"
       />
 
       {/* Stat Cards - DUMMY DATA */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <StatCard
           icon={Users}
           label="Total Leaduri"
           value={stats.totalLeads}
+          accent="orange"
         />
 
         <StatCard
@@ -336,6 +351,7 @@ export default async function LeadsPage({
           label="Noi Azi"
           value={stats.newToday}
           helper="+12% vs ieri"
+          accent="orange"
         />
 
         <StatCard
@@ -343,6 +359,7 @@ export default async function LeadsPage({
           label="TTFT Mediu"
           value={stats.avgTTFT}
           helper="Target: <15m"
+          accent="orange"
         />
 
         <StatCard
@@ -350,6 +367,7 @@ export default async function LeadsPage({
           label="Breach-uri Active"
           value={stats.activeBreaches}
           helper="Necesită atenție"
+          accent="red"
         />
       </div>
 
@@ -372,6 +390,22 @@ export default async function LeadsPage({
               placeholder="Nume, email, telefon, companie sau externalId"
               className="h-10"
             />
+          </label>
+
+          <label className="space-y-1 text-xs text-slate-600">
+            <span>Etapa</span>
+            <select
+              name="stage"
+              defaultValue={activeQuery.stage ?? ""}
+              className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30"
+            >
+              <option value="">Toate</option>
+              {STAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="space-y-1 text-xs text-slate-600">

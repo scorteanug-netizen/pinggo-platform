@@ -10,21 +10,40 @@ type NavItem = {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  activeColor: "orange" | "violet" | "gray";
 };
 
 const navItems: NavItem[] = [
-  { href: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/app/leads", label: "Leaduri", icon: Users },
-  { href: "/app/flows", label: "Fluxuri", icon: Workflow },
-  { href: "/app/setari", label: "Setari", icon: Settings },
+  { href: "/app", label: "Dashboard", icon: LayoutDashboard, activeColor: "orange" },
+  { href: "/app/leads", label: "Leaduri", icon: Users, activeColor: "orange" },
+  { href: "/app/flows", label: "Fluxuri", icon: Workflow, activeColor: "violet" },
+  { href: "/app/setari", label: "Setari", icon: Settings, activeColor: "gray" },
 ];
+
+const activeRailClasses = {
+  orange: "bg-orange-500",
+  violet: "bg-violet-500",
+  gray: "bg-slate-500",
+} as const;
+
+const activeIconClasses = {
+  orange: "text-orange-500",
+  violet: "text-violet-500",
+  gray: "text-slate-600",
+} as const;
+
+const activeMobileClasses = {
+  orange: "border-orange-200 bg-orange-50 text-orange-700 font-extrabold",
+  violet: "border-violet-200 bg-violet-50 text-violet-700 font-extrabold",
+  gray: "border-slate-300 bg-slate-100 text-slate-700 font-extrabold",
+} as const;
 
 function getItemIsActive(pathname: string, href: string) {
   if (href === "/app") return pathname === "/app";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function SidebarLink({ href, label, icon: Icon }: NavItem) {
+function SidebarLink({ href, label, icon: Icon, activeColor }: NavItem) {
   const pathname = usePathname();
   const isActive = getItemIsActive(pathname, href);
 
@@ -34,20 +53,20 @@ function SidebarLink({ href, label, icon: Icon }: NavItem) {
       className={cn(
         "group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
         isActive
-          ? "bg-orange-50 text-slate-900 shadow-[inset_0_0_0_1px_rgba(255,86,33,0.14)]"
+          ? "bg-slate-100 text-slate-900 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]"
           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
       )}
     >
       <span
         className={cn(
           "absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full transition-colors",
-          isActive ? "bg-orange-500" : "bg-transparent group-hover:bg-slate-300"
+          isActive ? activeRailClasses[activeColor] : "bg-transparent group-hover:bg-slate-300"
         )}
       />
       <Icon
         className={cn(
           "h-4 w-4",
-          isActive ? "text-orange-500" : "text-slate-500 group-hover:text-slate-700"
+          isActive ? activeIconClasses[activeColor] : "text-slate-500 group-hover:text-slate-700"
         )}
       />
       <span>{label}</span>
@@ -96,8 +115,8 @@ export function MobileNav() {
             className={cn(
               "flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
               isActive
-                ? "border-orange-200 bg-orange-50 text-orange-700 font-extrabold"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                ? activeMobileClasses[item.activeColor]
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
             )}
           >
             <Icon className="h-4 w-4" />

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, TrendingUp, Users } from "lucide-react";
+import { ArrowRightLeft, Bot, Calendar, TrendingUp, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { CreateScenarioDialog } from "@/components/autopilot/CreateScenarioDialog";
 
 // DUMMY DATA pentru scenarii
@@ -47,21 +48,18 @@ const dummyScenarios = [
 export default function AutopilotPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // DUMMY: hardcoded permissions pentru moment (Task #3 va adăuga auth check)
-  const permissions = { canViewLeads: true };
-
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-12">
         {/* Header cu styling Fraunces */}
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-orange-600" />
+              <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center">
+                <Bot className="w-6 h-6 text-violet-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-fraunces font-black text-slate-900">
+                <h1 className="text-3xl font-fraunces font-extrabold text-slate-900">
                   Autopilot
                 </h1>
                 <p className="text-sm text-slate-600 mt-0.5">
@@ -80,60 +78,60 @@ export default function AutopilotPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-t-4 border-t-orange-500">
-            <CardHeader className="pb-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+          <Card className="bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-500 hover:shadow-[0_8px_20px_rgba(139,92,246,0.2)]">
+            <CardHeader className="p-6 pb-3">
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-orange-600" />
+                <Bot className="w-4 h-4 text-violet-500" />
                 <CardTitle className="text-xs uppercase tracking-wide text-slate-500 font-medium">
                   Scenarii Active
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-fraunces font-black text-slate-900">3</div>
+            <CardContent className="px-6 pb-6 pt-0">
+              <div className="text-4xl font-fraunces font-bold leading-none text-slate-900">3</div>
             </CardContent>
           </Card>
 
-          <Card className="border-t-4 border-t-orange-500">
-            <CardHeader className="pb-2">
+          <Card className="bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-500 hover:shadow-[0_8px_20px_rgba(249,115,22,0.2)]">
+            <CardHeader className="p-6 pb-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-orange-600" />
+                <TrendingUp className="w-4 h-4 text-orange-500" />
                 <CardTitle className="text-xs uppercase tracking-wide text-slate-500 font-medium">
                   Leaduri Azi
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-fraunces font-black text-slate-900">47</div>
+            <CardContent className="px-6 pb-6 pt-0">
+              <div className="text-4xl font-fraunces font-bold leading-none text-slate-900">47</div>
             </CardContent>
           </Card>
 
-          <Card className="border-t-4 border-t-orange-500">
-            <CardHeader className="pb-2">
+          <Card className="bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-green-500 hover:shadow-[0_8px_20px_rgba(16,185,129,0.2)]">
+            <CardHeader className="p-6 pb-3">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-orange-600" />
+                <Calendar className="w-4 h-4 text-green-500" />
                 <CardTitle className="text-xs uppercase tracking-wide text-slate-500 font-medium">
                   Booking Rate
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-fraunces font-black text-slate-900">32%</div>
+            <CardContent className="px-6 pb-6 pt-0">
+              <div className="text-4xl font-fraunces font-bold leading-none text-slate-900">32%</div>
             </CardContent>
           </Card>
 
-          <Card className="border-t-4 border-t-orange-500">
-            <CardHeader className="pb-2">
+          <Card className="bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-500 hover:shadow-[0_8px_20px_rgba(139,92,246,0.2)]">
+            <CardHeader className="p-6 pb-3">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-orange-600" />
+                <ArrowRightLeft className="w-4 h-4 text-violet-500" />
                 <CardTitle className="text-xs uppercase tracking-wide text-slate-500 font-medium">
                   Handover Rate
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-fraunces font-black text-slate-900">12%</div>
+            <CardContent className="px-6 pb-6 pt-0">
+              <div className="text-4xl font-fraunces font-bold leading-none text-slate-900">12%</div>
             </CardContent>
           </Card>
         </div>
@@ -144,10 +142,18 @@ export default function AutopilotPage() {
             Scenarii Configurate
           </h2>
 
-          <div className="grid gap-4">
+          <div className="grid gap-6">
             {dummyScenarios.map((scenario) => (
-              <Card key={scenario.id} className="border-t-4 border-t-orange-500 hover:shadow-lg transition-shadow">
-                <CardHeader>
+              <Card
+                key={scenario.id}
+                className={cn(
+                  "bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5",
+                  scenario.type === "booking"
+                    ? "hover:border-orange-500 hover:shadow-[0_8px_20px_rgba(249,115,22,0.2)]"
+                    : "hover:border-violet-500 hover:shadow-[0_8px_20px_rgba(139,92,246,0.2)]"
+                )}
+              >
+                <CardHeader className="p-6 pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -157,7 +163,7 @@ export default function AutopilotPage() {
                         <Badge variant={scenario.status === "active" ? "green" : "gray"}>
                           {scenario.status === "active" ? "Activ" : "Pausat"}
                         </Badge>
-                        <Badge variant={scenario.type === "booking" ? "orange" : "gray"}>
+                        <Badge variant={scenario.type === "booking" ? "orange" : "violet"}>
                           {scenario.type === "booking" ? "Booking" : "Calificare"}
                         </Badge>
                       </div>
@@ -172,8 +178,8 @@ export default function AutopilotPage() {
                   </div>
                 </CardHeader>
 
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-4 text-sm">
+                <CardContent className="px-6 pb-6 pt-0">
+                  <div className="grid grid-cols-4 gap-6 text-sm">
                     <div>
                       <div className="text-slate-500 text-xs mb-1">Leaduri procesate</div>
                       <div className="font-semibold text-slate-900">{scenario.leadsProcessed}</div>

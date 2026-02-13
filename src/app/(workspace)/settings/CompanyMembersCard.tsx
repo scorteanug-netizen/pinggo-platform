@@ -88,7 +88,7 @@ export function CompanyMembersCard({ workspaceId, canInvite, members }: CompanyM
     <SectionCard
       title="Membri companie"
       description="Lista membrilor din compania curenta."
-      borderColor="orange"
+      borderColor="gray"
       contentClassName="space-y-4"
     >
         <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -110,7 +110,10 @@ export function CompanyMembersCard({ workspaceId, canInvite, members }: CompanyM
                 </tr>
               ) : (
                 members.map((member) => (
-                  <tr key={member.userId} className="border-t border-slate-200">
+                  <tr
+                    key={member.userId}
+                    className="border-t border-slate-200 transition-colors duration-200 hover:bg-gray-50"
+                  >
                     <td className="px-3 py-2 text-slate-700">{member.name || "-"}</td>
                     <td className="px-3 py-2 text-slate-700">{member.email}</td>
                     <td className="px-3 py-2">

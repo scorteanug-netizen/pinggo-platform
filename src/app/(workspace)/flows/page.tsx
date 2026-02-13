@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Workflow } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
@@ -57,12 +58,16 @@ export default async function FlowsPage() {
       <PageHeader
         title="Fluxuri"
         subtitle="Configureaza pasii de intrare, repartizare si SLA pentru compania activa."
+        icon={Workflow}
+        iconBgColor="bg-violet-50"
+        iconColor="text-violet-600"
         activeCompanyName={currentWorkspace?.name}
       />
 
       <SectionCard
         title="Lista fluxuri"
         description="Creeaza fluxuri noi, activeaza/dezactiveaza si intra in wizard-ul de configurare."
+        borderColor="violet"
       >
         <FlowsManager
           isSuperAdmin={context.globalRole === "SUPER_ADMIN"}

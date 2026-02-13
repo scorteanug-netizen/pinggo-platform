@@ -678,7 +678,7 @@ export function FlowWizardBuilder({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{flowName}</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{flowName}</h1>
           <p className="text-sm text-slate-600">
             Wizard builder fara drag-drop. Pas curent: {selectedStepLabel}.
           </p>

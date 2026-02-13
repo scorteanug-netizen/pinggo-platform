@@ -60,9 +60,9 @@ export function PageHeader({
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-3xl font-fraunces font-extrabold text-slate-900">{title}</h1>
               {activeCompanyName ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-extrabold text-orange-700">
+                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
                   Companie activa:
-                  <span className="font-extrabold text-orange-800">{activeCompanyName}</span>
+                  <span className="font-extrabold text-slate-800">{activeCompanyName}</span>
                 </span>
               ) : null}
             </div>

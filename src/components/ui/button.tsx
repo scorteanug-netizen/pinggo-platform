@@ -9,12 +9,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-orange-500 text-white shadow-[0_10px_22px_rgba(255,86,33,0.24)] hover:bg-orange-600 hover:shadow-[0_12px_26px_rgba(255,86,33,0.3)]",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-orange-500 text-white shadow-[0_10px_22px_rgba(255,86,33,0.24)] hover:scale-[1.02] hover:bg-orange-600 hover:shadow-[0_14px_30px_rgba(255,86,33,0.34)]",
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-[0_4px_12px_rgba(239,68,68,0.2)] hover:scale-[1.02] hover:bg-destructive/90 hover:shadow-[0_10px_24px_rgba(239,68,68,0.28)]",
         outline:
-          "border border-slate-200 bg-white text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:border-orange-100 hover:bg-orange-50 hover:text-orange-700",
-        secondary: "bg-slate-100 text-slate-700 hover:bg-slate-200/80",
-        ghost: "text-slate-600 hover:bg-orange-50 hover:text-orange-700",
+          "border border-slate-200 bg-white text-slate-700 shadow-[0_2px_8px_rgba(15,23,42,0.08)] hover:scale-[1.02] hover:border-orange-100 hover:bg-orange-50 hover:text-orange-700 hover:shadow-[0_8px_20px_rgba(15,23,42,0.12)]",
+        secondary:
+          "bg-slate-100 text-slate-700 shadow-[0_2px_8px_rgba(15,23,42,0.06)] hover:scale-[1.02] hover:bg-slate-200/80 hover:shadow-[0_8px_20px_rgba(15,23,42,0.1)]",
+        ghost:
+          "text-slate-600 hover:scale-[1.02] hover:bg-orange-50 hover:text-orange-700 hover:shadow-[0_6px_16px_rgba(15,23,42,0.1)]",
         link: "text-orange-600 font-extrabold underline-offset-4 hover:underline",
       },
       size: {

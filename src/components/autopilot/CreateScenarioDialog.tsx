@@ -60,7 +60,7 @@ export function CreateScenarioDialog({ open, onOpenChange }: CreateScenarioDialo
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-orange-500" />
+            <Sparkles className="w-5 h-5 text-violet-500" />
             Scenariu nou
           </DialogTitle>
           <DialogDescription>
@@ -100,7 +100,7 @@ export function CreateScenarioDialog({ open, onOpenChange }: CreateScenarioDialo
                 </SelectItem>
                 <SelectItem value="qualification">
                   <div className="flex items-center gap-2">
-                    <Badge variant="gray" className="text-xs">Calificare</Badge>
+                    <Badge variant="violet" className="text-xs">Calificare</Badge>
                     <span>Întrebări de calificare + handover</span>
                   </div>
                 </SelectItem>

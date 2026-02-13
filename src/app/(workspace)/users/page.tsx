@@ -112,38 +112,44 @@ export default async function UsersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Header cu icon */}
       <PageHeader
         title="Useri"
         subtitle="Creeaza compania prima data, apoi invita userul si alege compania lui."
         icon={UserCog}
+        iconBgColor="bg-violet-50"
+        iconColor="text-violet-600"
       />
 
       {/* Stat Cards - REAL DATA */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <StatCard
           icon={Users}
           label="Total Useri"
           value={stats.totalUsers}
+          accent="violet"
         />
 
         <StatCard
           icon={Shield}
           label="Admini"
           value={stats.admins}
+          accent="orange"
         />
 
         <StatCard
           icon={UserCog}
           label="Manageri"
           value={stats.managers}
+          accent="violet"
         />
 
         <StatCard
           icon={UserCheck}
           label="Agenți"
           value={stats.agents}
+          accent="gray"
         />
       </div>
 
@@ -182,7 +188,10 @@ export default async function UsersPage() {
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-200">
+                  <tr
+                    key={row.id}
+                    className="border-t border-slate-200 transition-colors duration-200 hover:bg-gray-50"
+                  >
                     <td className="px-3 py-2 text-slate-800">{row.name || "-"}</td>
                     <td className="px-3 py-2 text-slate-700">{row.email}</td>
                     <td className="px-3 py-2 text-slate-700">{row.company || "-"}</td>

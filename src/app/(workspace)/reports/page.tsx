@@ -58,12 +58,14 @@ export default async function ReportsPage({
   const rangeInput = getDefaultReportRangeInputValues(from, to);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Header cu icon */}
       <PageHeader
         title="Rapoarte"
         subtitle="KPI operationale pentru intervalul selectat."
         icon={BarChart3}
+        iconBgColor="bg-violet-50"
+        iconColor="text-violet-600"
       />
 
       <SectionCard
@@ -97,37 +99,41 @@ export default async function ReportsPage({
       </SectionCard>
 
       {/* Stat Cards - REAL DATA */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={Clock}
           label="TTFT mediu"
           value={formatMinutes(summary.ttftAvgMinutes)}
           helper={`Leaduri atinse: ${summary.touchedLeads} / ${summary.totalLeads}`}
+          accent="orange"
         />
         <StatCard
           icon={Target}
           label="TTFT median"
           value={formatMinutes(summary.ttftMedianMinutes)}
           helper="Baza: lead_received la primul proof valid"
+          accent="orange"
         />
         <StatCard
           icon={Calendar}
           label="Booking rate"
           value={formatPercent(summary.bookingRatePct)}
           helper={`Meeting created: ${summary.bookingLeads} / ${summary.totalLeads}`}
+          accent="violet"
         />
         <StatCard
           icon={TrendingUp}
           label="Handover rate"
           value={formatPercent(summary.handoverRatePct)}
           helper={`Handover events: ${summary.handoverEvents}`}
+          accent="violet"
         />
       </div>
 
       <SectionCard
         title="Breach rate pe etapa"
         description="Tabel simplu cu total instante si procent depasit pe fiecare etapa SLA."
-        borderColor="orange"
+        borderColor="violet"
       >
         {stages.rows.length === 0 ? (
           <p className="text-sm text-slate-600">
@@ -146,7 +152,10 @@ export default async function ReportsPage({
               </thead>
               <tbody>
                 {stages.rows.map((row) => (
-                  <tr key={row.stageKey} className="border-b border-slate-100 text-sm text-slate-700">
+                  <tr
+                    key={row.stageKey}
+                    className="border-b border-slate-100 text-sm text-slate-700 transition-colors duration-200 hover:bg-gray-50"
+                  >
                     <td className="px-3 py-3">
                       <p className="font-medium text-slate-900">{row.stageName}</p>
                       <p className="text-xs text-slate-500">{row.stageKey}</p>

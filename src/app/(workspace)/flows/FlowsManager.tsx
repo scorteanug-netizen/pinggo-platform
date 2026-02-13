@@ -305,7 +305,10 @@ export function FlowsManager({
               {flows.map((flow) => {
                 const status = getStatusMeta(flow);
                 return (
-                  <tr key={flow.id} className="border-b border-slate-100 last:border-b-0">
+                  <tr
+                    key={flow.id}
+                    className="border-b border-slate-100 transition-colors duration-200 hover:bg-gray-50 last:border-b-0"
+                  >
                     <td className="px-3 py-2 align-top">
                       <p className="font-medium text-slate-900">{flow.name}</p>
                     </td>

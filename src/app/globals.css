@@ -56,3 +56,78 @@
       linear-gradient(180deg, #f8fafc 0%, #f2f5f9 100%);
   }
 }
+
+.dashboard-grid-layout {
+  position: relative;
+  transition: height 0.2s ease;
+}
+
+.dashboard-grid-editing {
+  position: relative;
+}
+
+.dashboard-grid-editing::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 100px,
+      rgba(249, 115, 22, 0.08) 100px,
+      rgba(249, 115, 22, 0.08) 101px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-grid-layout > .react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+.dashboard-grid-layout > .react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.dashboard-grid-layout > .react-grid-item.resizing,
+.dashboard-grid-layout > .react-grid-item.react-draggable-dragging {
+  z-index: 20;
+  transition: none;
+}
+
+.dashboard-grid-layout > .react-grid-item.react-draggable-dragging {
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.2);
+}
+
+.dashboard-grid-layout .react-grid-placeholder {
+  z-index: 1;
+  border-radius: 12px;
+  background: #f97316;
+  opacity: 0.18;
+}
+
+.dashboard-grid-layout .react-resizable-handle {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(100, 116, 139, 0.65) 46%, rgba(100, 116, 139, 0.65) 54%, transparent 55%),
+    linear-gradient(135deg, transparent 65%, rgba(100, 116, 139, 0.45) 66%, rgba(100, 116, 139, 0.45) 74%, transparent 75%);
+  cursor: se-resize;
+}
+
+.dashboard-grid-layout .react-resizable-handle::after {
+  content: "";
+}
+
+.dashboard-grid-layout .react-resizable-handle-se {
+  right: 6px;
+  bottom: 6px;
+}

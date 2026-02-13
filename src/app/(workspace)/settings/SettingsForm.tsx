@@ -113,11 +113,11 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
   }
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-12" onSubmit={handleSubmit}>
       <SectionCard
         title="Workspace"
         description="Setari generale pentru echipa curenta."
-        borderColor="orange"
+        borderColor="gray"
         contentClassName="space-y-4"
       >
         <div className="space-y-2">
@@ -159,7 +159,7 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
       <SectionCard
         title="Program de lucru"
         description="Folosit pentru calculul termenelor cand business hours este activ."
-        borderColor="orange"
+        borderColor="gray"
         contentClassName="space-y-4"
       >
         <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
@@ -199,7 +199,10 @@ export function SettingsForm({ initialData }: SettingsFormProps) {
               {WEEKDAYS.map((weekday) => {
                 const day = form.schedule[weekday.key];
                 return (
-                  <tr key={weekday.key} className="border-t border-slate-200">
+                  <tr
+                    key={weekday.key}
+                    className="border-t border-slate-200 transition-colors duration-200 hover:bg-gray-50"
+                  >
                     <td className="px-3 py-2 font-medium text-slate-700">{weekday.label}</td>
                     <td className="px-3 py-2">
                       <input

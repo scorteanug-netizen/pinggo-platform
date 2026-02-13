@@ -26,12 +26,12 @@ function NotificationBadge({ readAt }: { readAt: Date | null }) {
   );
 }
 
-function getNotificationTypeBadgeVariant(type: string): "gray" | "orange" | "green" | "red" | "blue" {
+function getNotificationTypeBadgeVariant(type: string): "gray" | "orange" | "violet" | "green" | "red" {
   if (type.includes("BREACH")) return "red";
   if (type.includes("ESCALATION")) return "orange";
   if (type.includes("BOOKING")) return "green";
-  if (type.includes("NEW_LEAD")) return "blue";
-  if (type.includes("HANDOVER")) return "blue";
+  if (type.includes("NEW_LEAD")) return "violet";
+  if (type.includes("HANDOVER")) return "violet";
   return "gray";
 }
 
@@ -58,12 +58,14 @@ export default async function NotificationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       {/* Header cu icon */}
       <PageHeader
         title="Notificari"
         subtitle="Alerte in-app pentru reminder, reasignare si manager alert."
         icon={Bell}
+        iconBgColor="bg-orange-50"
+        iconColor="text-orange-600"
         actions={
           <form action="/api/notifications/read-all?redirectTo=/notifications" method="POST">
             <Button type="submit" variant="outline">
@@ -74,11 +76,12 @@ export default async function NotificationsPage() {
       />
 
       {/* Stat Cards - REAL DATA */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <StatCard
           icon={Bell}
           label="Notificări Noi"
           value={stats.unread}
+          accent="orange"
         />
 
         <StatCard
@@ -86,6 +89,7 @@ export default async function NotificationsPage() {
           label="Alerte Critice"
           value={stats.critical}
           helper="breach + escalation"
+          accent="red"
         />
 
         <StatCard
@@ -93,10 +97,11 @@ export default async function NotificationsPage() {
           label="Citite"
           value={stats.read}
           helper={`din ${notifications.length} total`}
+          accent="green"
         />
       </div>
 
-      <Card className="border-t-4 border-t-orange-500 rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_28px_rgba(15,23,42,0.06)]">
+      <Card className="rounded-2xl border-slate-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-500 hover:shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-fraunces font-bold text-slate-900">
             Flux notificari
