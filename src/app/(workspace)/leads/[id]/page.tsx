@@ -5,10 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import { prisma } from "@/server/db";
-import {
-  deriveAutopilotSnapshot,
-  filterAutopilotTimelineFromLeadEvents,
-} from "@/server/services/autopilotService";
+// Legacy autopilot service imports removed — now using AutopilotRun + EventLog directly
 import { detectEscalations } from "@/server/services/escalationService";
 import { getLeadDetailScoped } from "@/server/services/leadService";
 import { detectBreaches } from "@/server/services/slaService";
@@ -69,6 +66,7 @@ const EVENT_TYPE_LABEL: Record<string, string> = {
   autopilot_question_asked: "Intrebare automata trimisa",
   autopilot_booking_offered: "Link de programare trimis",
   handover_requested: "Transfer catre operator solicitat",
+  message_blocked: "Mesaj blocat: lipseste numar",
 };
 
 const ASSIGNMENT_METHOD_LABEL: Record<string, string> = {
@@ -672,20 +670,120 @@ export default async function LeadDetailPage({
 
   const displayName =
     lead.identity?.name || lead.identity?.email || lead.identity?.phone || lead.id;
-  const autopilotSnapshot = deriveAutopilotSnapshot(
-    lead.events.map((event) => ({ type: event.type }))
-  );
-  const autopilotTimeline = filterAutopilotTimelineFromLeadEvents(
-    lead.events.map((event) => ({
-      id: event.id,
-      type: event.type,
-      createdAt: event.createdAt,
-      payload: event.payload,
-    }))
-  ).map((event) => ({
-    ...event,
-    createdAt: event.createdAt.toISOString(),
-  }));
+
+  // Autopilot + SLA: query real AutopilotRun, EventLog, SLAState, scenarios
+  const [autopilotRunRow, autopilotEventLogs, slaState, scenarios] = await Promise.all([
+    prisma.autopilotRun.findUnique({
+      where: { leadId: lead.id },
+      select: {
+        id: true,
+        status: true,
+        currentStep: true,
+        stateJson: true,
+        scenarioId: true,
+        scenario: {
+          select: {
+            id: true,
+            name: true,
+            mode: true,
+            isDefault: true,
+            handoverUserId: true,
+            handoverUser: { select: { name: true, email: true } },
+          },
+        },
+      },
+    }),
+    prisma.eventLog.findMany({
+      where: { leadId: lead.id },
+      orderBy: { occurredAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        eventType: true,
+        payload: true,
+        occurredAt: true,
+      },
+    }),
+    prisma.sLAState.findFirst({
+      where: { leadId: lead.id },
+      orderBy: { startedAt: "desc" },
+      select: {
+        startedAt: true,
+        deadlineAt: true,
+        stoppedAt: true,
+        stopReason: true,
+        breachedAt: true,
+      },
+    }),
+    prisma.autopilotScenario.findMany({
+      where: { workspaceId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, mode: true },
+    }),
+  ]);
+
+  const autopilotRun = autopilotRunRow
+    ? {
+        id: autopilotRunRow.id,
+        status: autopilotRunRow.status,
+        currentStep: autopilotRunRow.currentStep,
+        stateJson: autopilotRunRow.stateJson,
+        scenarioId: autopilotRunRow.scenarioId,
+        scenarioMode: autopilotRunRow.scenario?.mode ?? null,
+        scenario: autopilotRunRow.scenario
+          ? {
+              id: autopilotRunRow.scenario.id,
+              name: autopilotRunRow.scenario.name,
+              mode: autopilotRunRow.scenario.mode,
+              isDefault: autopilotRunRow.scenario.isDefault,
+            }
+          : null,
+      }
+    : null;
+
+  const eventLogTimeline = autopilotEventLogs
+    .reverse()
+    .map((e) => ({
+      id: e.id,
+      eventType: e.eventType,
+      payload: e.payload,
+      occurredAt: e.occurredAt?.toISOString() ?? new Date().toISOString(),
+    }));
+
+  // SLA status derivation
+  const handoverUser = autopilotRunRow?.scenario?.handoverUser;
+  const handoverLabel = handoverUser
+    ? handoverUser.name?.trim() || handoverUser.email
+    : null;
+
+  // Derive SLA status from SLAState first, then fall back to legacy stage
+  const slaStatusLabel = slaState
+    ? slaState.breachedAt
+      ? "Depasit"
+      : slaState.stoppedAt
+        ? "Oprit"
+        : "In derulare"
+    : currentStageCandidate
+      ? currentStageCandidate.status === "BREACHED"
+        ? "Depasit"
+        : currentStageCandidate.status === "STOPPED"
+          ? "Oprit"
+          : "In derulare"
+      : "-";
+
+  const slaStatusBadge = slaState
+    ? slaState.breachedAt
+      ? "bg-rose-100 text-rose-700"
+      : slaState.stoppedAt
+        ? "bg-slate-100 text-slate-600"
+        : "bg-emerald-100 text-emerald-700"
+    : currentStageCandidate
+      ? currentStageCandidate.status === "BREACHED"
+        ? "bg-rose-100 text-rose-700"
+        : currentStageCandidate.status === "STOPPED"
+          ? "bg-slate-100 text-slate-600"
+          : "bg-emerald-100 text-emerald-700"
+    : "bg-slate-100 text-slate-600";
 
   return (
     <div className="space-y-4">
@@ -738,8 +836,9 @@ export default async function LeadDetailPage({
         <CardContent>
           <AutopilotSection
             leadId={lead.id}
-            initialSnapshot={autopilotSnapshot}
-            initialTimeline={autopilotTimeline}
+            autopilotRun={autopilotRun}
+            eventLogTimeline={eventLogTimeline}
+            scenarios={scenarios}
           />
         </CardContent>
       </Card>
@@ -747,102 +846,139 @@ export default async function LeadDetailPage({
       <div className="grid gap-3 lg:grid-cols-2">
         <Card className="rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_28px_rgba(15,23,42,0.06)]">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Etape SLA</CardTitle>
+            <CardTitle className="text-lg">SLA</CardTitle>
             <CardDescription className="text-slate-600">
-              Termenele si progresul fiecarei etape, in format usor de urmarit.
+              Starea SLA pentru acest lead.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Summary badges */}
             <div className="mb-3 grid gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Responsabil</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{currentOwnerLabel}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{handoverLabel ?? currentOwnerLabel}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Etapa curenta</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{currentStageLabel}</p>
-                {currentStageCandidate ? (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Status: {STAGE_STATUS_LABEL[currentStageCandidate.status]}
-                  </p>
-                ) : null}
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status SLA</p>
+                <p className="mt-1 flex items-center gap-2">
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${slaStatusBadge}`}>
+                    {slaStatusLabel}
+                  </span>
+                </p>
               </div>
             </div>
 
-            {orderedStages.length === 0 ? (
-              <p className="text-sm text-slate-600">Nu exista etape SLA pentru acest lead.</p>
-            ) : (
-              <ul className="space-y-2">
-                {orderedStages.map((stage) => {
-                  const stageName =
-                    toStageLabel(definitionMap, {
-                      flowId: stage.flowId,
-                      stageKey: stage.stageKey,
-                    }) ?? stage.stageKey;
-                  const stopReasonLabel = toStopReasonLabel(
-                    stage.stopReason,
-                    definitionMap,
-                    stage.flowId
-                  );
-                  const overageMinutes = computeStageOverageMinutes({
-                    status: stage.status,
-                    dueAt: stage.dueAt,
-                    breachedAt: stage.breachedAt,
-                    now,
-                  });
-                  return (
-                    <li
-                      key={stage.id}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{stageName}</p>
-                          <p className="text-xs text-slate-500">Etapa SLA</p>
-                        </div>
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${stageStatusBadge(stage.status)}`}>
-                          {STAGE_STATUS_LABEL[stage.status]}
-                        </span>
-                      </div>
-                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                          <p className="font-medium uppercase tracking-wide text-slate-500">Inceput</p>
-                          <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.startedAt)}</p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                          <p className="font-medium uppercase tracking-wide text-slate-500">Termen limita</p>
-                          <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.dueAt)}</p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                          <p className="font-medium uppercase tracking-wide text-slate-500">Inchisa la</p>
-                          <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.stoppedAt)}</p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                          <p className="font-medium uppercase tracking-wide text-slate-500">Depasita la</p>
-                          <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.breachedAt)}</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
-                          Dovada finalizare:{" "}
-                          {stage.proofEvent?.type ? toEventTypeLabel(stage.proofEvent.type) : "-"}
-                        </span>
-                        {overageMinutes !== null ? (
-                          <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
-                            Depasire: +{overageMinutes} min
+            {/* SLAState details */}
+            {slaState ? (
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                <div className="grid gap-2 text-xs sm:grid-cols-2">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    <p className="font-medium uppercase tracking-wide text-slate-500">Pornit la</p>
+                    <p className="mt-1 text-sm text-slate-800">{formatDateTime(slaState.startedAt)}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                    <p className="font-medium uppercase tracking-wide text-slate-500">Termen limita</p>
+                    <p className="mt-1 text-sm text-slate-800">{formatDateTime(slaState.deadlineAt)}</p>
+                  </div>
+                  {slaState.stoppedAt ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                      <p className="font-medium uppercase tracking-wide text-slate-500">Oprit la</p>
+                      <p className="mt-1 text-sm text-slate-800">{formatDateTime(slaState.stoppedAt)}</p>
+                      {slaState.stopReason ? (
+                        <p className="mt-1 text-xs text-slate-500">Motiv: {slaState.stopReason}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {slaState.breachedAt ? (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2">
+                      <p className="font-medium uppercase tracking-wide text-rose-600">Depasit la</p>
+                      <p className="mt-1 text-sm text-rose-800">{formatDateTime(slaState.breachedAt)}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : orderedStages.length === 0 ? (
+              <p className="text-sm text-slate-600">Nu exista SLA pentru acest lead.</p>
+            ) : null}
+
+            {/* Legacy SLA stage instances (if any) */}
+            {orderedStages.length > 0 ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Etape SLA (flow)</p>
+                <ul className="space-y-2">
+                  {orderedStages.map((stage) => {
+                    const stageName =
+                      toStageLabel(definitionMap, {
+                        flowId: stage.flowId,
+                        stageKey: stage.stageKey,
+                      }) ?? stage.stageKey;
+                    const stopReasonLabel = toStopReasonLabel(
+                      stage.stopReason,
+                      definitionMap,
+                      stage.flowId
+                    );
+                    const overageMinutes = computeStageOverageMinutes({
+                      status: stage.status,
+                      dueAt: stage.dueAt,
+                      breachedAt: stage.breachedAt,
+                      now,
+                    });
+                    return (
+                      <li
+                        key={stage.id}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{stageName}</p>
+                            <p className="text-xs text-slate-500">Etapa SLA</p>
+                          </div>
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${stageStatusBadge(stage.status)}`}>
+                            {STAGE_STATUS_LABEL[stage.status]}
                           </span>
+                        </div>
+                        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                            <p className="font-medium uppercase tracking-wide text-slate-500">Inceput</p>
+                            <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.startedAt)}</p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                            <p className="font-medium uppercase tracking-wide text-slate-500">Termen limita</p>
+                            <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.dueAt)}</p>
+                          </div>
+                          {stage.stoppedAt ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                              <p className="font-medium uppercase tracking-wide text-slate-500">Inchisa la</p>
+                              <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.stoppedAt)}</p>
+                            </div>
+                          ) : null}
+                          {stage.breachedAt ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                              <p className="font-medium uppercase tracking-wide text-slate-500">Depasita la</p>
+                              <p className="mt-1 text-sm text-slate-800">{formatDateTime(stage.breachedAt)}</p>
+                            </div>
+                          ) : null}
+                        </div>
+                        {(overageMinutes !== null || stopReasonLabel) ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {overageMinutes !== null ? (
+                              <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700">
+                                Depasire: +{overageMinutes} min
+                              </span>
+                            ) : null}
+                            {stopReasonLabel ? (
+                              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
+                                Motiv inchidere: {stopReasonLabel}
+                              </span>
+                            ) : null}
+                          </div>
                         ) : null}
-                        {stopReasonLabel ? (
-                          <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
-                            Motiv inchidere: {stopReasonLabel}
-                          </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

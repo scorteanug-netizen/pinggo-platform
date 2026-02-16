@@ -1,6 +1,14 @@
-import { LeadEvent, Prisma, SLAStageDefinition } from "@prisma/client";
+import {
+  AutopilotRunStatus,
+  LeadEvent,
+  OutboundChannel,
+  OutboundMessageStatus,
+  Prisma,
+  SLAStageDefinition,
+} from "@prisma/client";
 import { prisma } from "../db";
 import { getOrderedStageDefinitions, startStage } from "./slaService";
+import { getDefaultScenario } from "./autopilot/getDefaultScenario";
 
 type TxOrClient = Prisma.TransactionClient | typeof prisma;
 
@@ -21,6 +29,9 @@ const AUTOPILOT_QUESTIONS = [
 ] as const;
 
 const AUTOPILOT_BOOKING_LINK_BASE = "https://pinggo.local/booking/demo";
+
+const AUTOPILOT_WELCOME_TEXT =
+  "Salut! Sunt asistentul virtual Pinggo. Am primit solicitarea ta si revenim imediat cu urmatorii pasi.";
 
 export type AutopilotState =
   | "IDLE"
@@ -230,59 +241,110 @@ export async function startAutopilot(params: {
   return prisma.$transaction(async (trx) => {
     const lead = await trx.lead.findFirst({
       where: { id: params.leadId, workspaceId: params.workspaceId },
-      select: { id: true },
+      select: { id: true, phone: true },
     });
     if (!lead) {
       throw new Error("LEAD_NOT_FOUND");
     }
 
-    const events = await listAutopilotEvents(trx, params.workspaceId, lead.id);
-    const hasStarted = events.some((event) => event.type === "autopilot_started");
-    const hasAck = events.some((event) => event.type === "autopilot_ack");
-    const questionsAsked = events.filter((event) => event.type === "autopilot_question_asked").length;
+    // Create AutopilotRun if it doesn't exist (needed for new UI which uses AutopilotRun + EventLog)
+    let run = await trx.autopilotRun.findUnique({
+      where: { leadId: lead.id },
+      select: { id: true, status: true },
+    });
 
-    if (!hasStarted) {
-      await trx.leadEvent.create({
+    if (!run) {
+      const scenario = await getDefaultScenario(trx, params.workspaceId);
+      const identity = await trx.leadIdentity.findUnique({
+        where: { leadId: lead.id },
+        select: { phone: true },
+      });
+      const toPhone = identity?.phone ?? lead.phone ?? null;
+
+      run = await trx.autopilotRun.create({
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
-          type: "autopilot_started",
-          payload: {
-            mode: "stub",
-          } as Prisma.InputJsonValue,
+          scenarioId: scenario.id,
+          status: AutopilotRunStatus.ACTIVE,
+          currentStep: "welcome",
+          stateJson: { node: "q1", answers: {}, questionIndex: 0 },
+          lastOutboundAt: new Date(),
         },
+        select: { id: true, status: true },
       });
+
+      if (toPhone) {
+        const outbound = await trx.outboundMessage.create({
+          data: {
+            leadId: lead.id,
+            workspaceId: params.workspaceId,
+            channel: OutboundChannel.WHATSAPP,
+            toPhone,
+            text: AUTOPILOT_WELCOME_TEXT,
+            status: OutboundMessageStatus.QUEUED,
+          },
+          select: { id: true },
+        });
+
+        await trx.eventLog.createMany({
+          data: [
+            {
+              leadId: lead.id,
+              eventType: "autopilot_started",
+              payload: {
+                runId: run.id,
+                scenarioId: scenario.id,
+                mode: scenario.mode,
+              } as Prisma.InputJsonValue,
+            },
+            {
+              leadId: lead.id,
+              eventType: "message_queued",
+              payload: {
+                channel: "whatsapp",
+                messageId: outbound.id,
+                scenarioId: scenario.id,
+              } as Prisma.InputJsonValue,
+            },
+          ],
+        });
+      } else {
+        const observedTrimmed = ((lead.phone ?? "") as string).trim() || null;
+        await trx.eventLog.createMany({
+          data: [
+            {
+              leadId: lead.id,
+              eventType: "autopilot_started",
+              payload: {
+                runId: run.id,
+                scenarioId: scenario.id,
+                mode: scenario.mode,
+              } as Prisma.InputJsonValue,
+            },
+            {
+              leadId: lead.id,
+              eventType: "message_blocked",
+              payload: {
+                reason: "missing_phone",
+                channel: "whatsapp",
+                scenarioId: scenario.id,
+                nodeAfter: "welcome",
+                observedPhone: lead.phone ?? null,
+                observedTrimmedPhone: observedTrimmed,
+              } as Prisma.InputJsonValue,
+            },
+          ],
+        });
+      }
     }
 
-    if (!hasAck) {
-      await trx.leadEvent.create({
-        data: {
-          leadId: lead.id,
-          workspaceId: params.workspaceId,
-          type: "autopilot_ack",
-          payload: {
-            ackDelaySeconds: getRandomAckDelaySeconds(),
-            text: "Am primit mesajul. Revin imediat cu cateva intrebari.",
-          } as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    if (questionsAsked < 1) {
-      await trx.leadEvent.create({
-        data: {
-          leadId: lead.id,
-          workspaceId: params.workspaceId,
-          type: "autopilot_question_asked",
-          payload: {
-            index: 1,
-            text: AUTOPILOT_QUESTIONS[0],
-          } as Prisma.InputJsonValue,
-        },
-      });
-    }
-
-    return getAutopilotSnapshotForLead(trx, params.workspaceId, lead.id);
+    return {
+      runId: run.id,
+      leadId: lead.id,
+      status: run.status,
+      ...getAutopilotSnapshotForLead(trx, params.workspaceId, lead.id),
+    };
   });
 }
 
@@ -321,13 +383,15 @@ export async function processAutopilotEvent(params: {
     const hasAck = autopilotEvents.some((event) => event.type === "autopilot_ack");
 
     if (!hasStarted) {
+      const scenario = await getDefaultScenario(trx, params.workspaceId);
       await trx.leadEvent.create({
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
           type: "autopilot_started",
           payload: {
-            mode: "stub",
+            mode: scenario.mode,
+            scenarioId: scenario.id,
           } as Prisma.InputJsonValue,
         },
       });

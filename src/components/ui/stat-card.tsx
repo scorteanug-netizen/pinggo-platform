@@ -64,8 +64,8 @@ export function StatCard({
   className,
   spacious = false,
 }: StatCardProps) {
-  const headerPaddingClass = spacious ? "p-8 pb-4" : "p-6 pb-3";
-  const contentPaddingClass = spacious ? "px-8 pb-8 pt-0" : "px-6 pb-6 pt-0";
+  const headerPaddingClass = spacious ? "p-4 pb-2 sm:p-6 sm:pb-3" : "p-4 pb-2 sm:p-6 sm:pb-3";
+  const contentPaddingClass = spacious ? "px-4 pb-4 pt-0 sm:px-6 sm:pb-6" : "px-4 pb-4 pt-0 sm:px-6 sm:pb-6";
   const colors = accentClasses[accent];
 
   return (
@@ -96,7 +96,7 @@ export function StatCard({
         </div>
       </CardHeader>
       <CardContent className={contentPaddingClass}>
-        <div className="text-4xl font-fraunces font-bold leading-none text-slate-900">
+        <div className="text-2xl sm:text-4xl font-fraunces font-bold leading-none text-slate-900 truncate">
           {value}
         </div>
         {helper && <p className="text-xs text-slate-500 mt-1">{helper}</p>}

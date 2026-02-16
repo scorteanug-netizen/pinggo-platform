@@ -24,15 +24,15 @@ type LeadsTrendChartProps = {
 
 export function LeadsTrendChart({ data }: LeadsTrendChartProps) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-6">
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 shrink-0">
         <h2 className="text-lg font-fraunces font-bold text-slate-900">Trend Leaduri (7 Zile)</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-0.5 text-sm text-slate-600">
           Evolutia leadurilor noi, calificate si programate.
         </p>
       </div>
 
-      <div className="h-[280px] w-full sm:h-[300px]">
+      <div className="min-h-0 w-full flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
@@ -97,12 +97,12 @@ export function LeadsTrendChart({ data }: LeadsTrendChartProps) {
 
 export function LeadsTrendChartSkeleton() {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-6 space-y-2">
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 shrink-0 space-y-2">
         <div className="h-5 w-44 animate-pulse rounded bg-slate-200" />
         <div className="h-4 w-72 animate-pulse rounded bg-slate-200" />
       </div>
-      <div className="h-[280px] w-full animate-pulse rounded-lg bg-slate-100 sm:h-[300px]" />
+      <div className="min-h-0 w-full flex-1 animate-pulse rounded-lg bg-slate-100" />
     </section>
   );
 }

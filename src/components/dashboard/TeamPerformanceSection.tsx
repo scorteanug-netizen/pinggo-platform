@@ -345,15 +345,15 @@ export async function TeamPerformanceSection({
       : 0;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-4 flex items-center gap-2">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-center gap-2">
         <Users className="h-5 w-5 text-slate-400" />
         <h2 className="text-lg font-fraunces font-bold text-slate-900">Performanta Echipa</h2>
         <span className="text-sm text-slate-600">(Astazi)</span>
       </div>
 
       {finalRows.length === 0 ? (
-        <div className="rounded-lg border border-slate-100 px-4 py-8 text-center text-sm text-slate-500">
+        <div className="rounded-lg border border-slate-100 px-4 py-4 text-center text-sm text-slate-500">
           Nu exista activitate de echipa astazi.
         </div>
       ) : (
@@ -431,8 +431,8 @@ export async function TeamPerformanceSection({
 
 export function TeamPerformanceSectionSkeleton() {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-4 flex items-center gap-2">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-center gap-2">
         <div className="h-5 w-5 animate-pulse rounded bg-slate-200" />
         <div className="h-5 w-40 animate-pulse rounded bg-slate-200" />
       </div>

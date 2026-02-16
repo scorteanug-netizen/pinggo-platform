@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -21,39 +22,66 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Wrench } from "lucide-react";
+import { DEFAULT_AUTOPILOT_PROMPT_RO } from "@/server/services/autopilot/defaultPrompts";
 
 interface CreateScenarioDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  workspaceId: string;
 }
 
-export function CreateScenarioDialog({ open, onOpenChange }: CreateScenarioDialogProps) {
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "booking",
-    description: "",
-    welcomeMessage: "Bună {nume}! Văd că ești interesat de {sursa}. Te pot ajuta să programezi o consultație?",
-  });
+export function CreateScenarioDialog({ open, onOpenChange, workspaceId }: CreateScenarioDialogProps) {
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [name, setName] = useState("");
+  const [scenarioType, setScenarioType] = useState("QUALIFY_ONLY");
+  const [mode, setMode] = useState("RULES");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [maxQuestions, setMaxQuestions] = useState(2);
+
+  const isAi = mode === "AI";
+
+  function resetForm() {
+    setName("");
+    setScenarioType("QUALIFY_ONLY");
+    setMode("RULES");
+    setAiPrompt("");
+    setMaxQuestions(2);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!name.trim()) return;
 
-    // TODO: Task #3 va adăuga API call pentru salvare
-    console.log("Scenariu nou (dummy):", formData);
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/v1/autopilot/scenarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          name: name.trim(),
+          scenarioType,
+          mode,
+          aiPrompt: isAi && aiPrompt.trim() ? aiPrompt.trim() : undefined,
+          maxQuestions,
+          isDefault: false,
+        }),
+      });
 
-    // Arată success feedback (dummy)
-    alert(`✅ Scenariu "${formData.name}" creat cu succes!\n\n(Dummy - Task #3 va salva în DB)`);
-
-    // Reset form și închide dialog
-    setFormData({
-      name: "",
-      type: "booking",
-      description: "",
-      welcomeMessage: "Bună {nume}! Văd că ești interesat de {sursa}. Te pot ajuta să programezi o consultație?",
-    });
-    onOpenChange(false);
-  };
+      if (res.ok) {
+        const scenario = await res.json();
+        resetForm();
+        onOpenChange(false);
+        router.push(`/autopilot/${scenario.id}`);
+        router.refresh();
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,104 +92,126 @@ export function CreateScenarioDialog({ open, onOpenChange }: CreateScenarioDialo
             Scenariu nou
           </DialogTitle>
           <DialogDescription>
-            Configurează un scenariu de răspuns automat și programare
+            Configureaza un scenariu de raspuns automat
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Nume scenariu */}
+          {/* Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Nume scenariu *</Label>
+            <Label htmlFor="create-name">Nume scenariu *</Label>
             <Input
-              id="name"
-              placeholder="ex: Programare Consultație Medicală"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              id="create-name"
+              placeholder="ex: Calificare Lead Imobiliare"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
 
-          {/* Tip scenariu */}
+          {/* Type */}
           <div className="space-y-2">
-            <Label htmlFor="type">Tip scenariu *</Label>
-            <Select
-              value={formData.type}
-              onValueChange={(value) => setFormData({ ...formData, type: value })}
-            >
+            <Label htmlFor="create-type">Tip scenariu</Label>
+            <Select value={scenarioType} onValueChange={setScenarioType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="booking">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="orange" className="text-xs">Booking</Badge>
-                    <span>Programare automată cu calendar</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="qualification">
+                <SelectItem value="QUALIFY_ONLY">
                   <div className="flex items-center gap-2">
                     <Badge variant="violet" className="text-xs">Calificare</Badge>
-                    <span>Întrebări de calificare + handover</span>
+                    <span>Intrebari + handover</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="QUALIFY_AND_BOOK">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="orange" className="text-xs">Booking</Badge>
+                    <span>Calificare + programare</span>
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-slate-500">
-              {formData.type === "booking"
-                ? "Leadul primește sloturi de calendar și poate programa direct"
-                : "Leadul răspunde la întrebări, apoi e preluat de un agent"}
-            </p>
           </div>
 
-          {/* Descriere */}
+          {/* Mode */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descriere (opțional)</Label>
+            <Label>Mod functionare</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setMode("RULES")}
+                className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                  !isAi
+                    ? "border-violet-500 bg-violet-50/50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <Wrench className={`w-4 h-4 ${!isAi ? "text-violet-600" : "text-slate-400"}`} />
+                <div>
+                  <div className="font-semibold text-sm text-slate-900">Reguli</div>
+                  <div className="text-xs text-slate-500">Flux predefinit</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("AI");
+                  if (!aiPrompt.trim()) setAiPrompt(DEFAULT_AUTOPILOT_PROMPT_RO);
+                }}
+                className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                  isAi
+                    ? "border-orange-500 bg-orange-50/50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <Sparkles className={`w-4 h-4 ${isAi ? "text-orange-600" : "text-slate-400"}`} />
+                <div>
+                  <div className="font-semibold text-sm text-slate-900">AI Script</div>
+                  <div className="text-xs text-slate-500">Prompt personalizat</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* AI Prompt (only when AI mode) */}
+          {isAi && (
+            <div className="space-y-2">
+              <Label htmlFor="create-aiPrompt">AI Script / Prompt</Label>
+              <Textarea
+                id="create-aiPrompt"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder={`Esti asistent virtual pentru [Companie].\nTonul este prietenos.\nColecteaza: serviciu dorit, preferinta de zi.`}
+                rows={5}
+                className="font-mono text-sm"
+              />
+            </div>
+          )}
+
+          {/* Max questions */}
+          <div className="space-y-2">
+            <Label htmlFor="create-maxQuestions">Nr. maxim intrebari</Label>
             <Input
-              id="description"
-              placeholder="ex: Pentru consultații medicale noi pacienți"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              id="create-maxQuestions"
+              type="number"
+              min={1}
+              max={10}
+              value={maxQuestions}
+              onChange={(e) => setMaxQuestions(parseInt(e.target.value) || 2)}
             />
-          </div>
-
-          {/* Welcome Message */}
-          <div className="space-y-2">
-            <Label htmlFor="welcomeMessage">Mesaj de bun venit *</Label>
-            <Textarea
-              id="welcomeMessage"
-              placeholder="Mesajul care va fi trimis automat când intră un lead nou"
-              value={formData.welcomeMessage}
-              onChange={(e) => setFormData({ ...formData, welcomeMessage: e.target.value })}
-              rows={3}
-              required
-            />
-            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-              <span>Variabile disponibile:</span>
-              <Badge variant="gray" className="font-mono">{"{nume}"}</Badge>
-              <Badge variant="gray" className="font-mono">{"{sursa}"}</Badge>
-              <Badge variant="gray" className="font-mono">{"{telefon}"}</Badge>
-            </div>
-          </div>
-
-          {/* Preview */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Preview mesaj
-            </div>
-            <div className="bg-white rounded-lg p-3 text-sm text-slate-700 border border-slate-200">
-              {formData.welcomeMessage
-                .replace("{nume}", "Ion Popescu")
-                .replace("{sursa}", "Facebook Lead Ads")
-                .replace("{telefon}", "0723456789")}
-            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Anulează
+              Anuleaza
             </Button>
-            <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white">
-              Creează scenariu
+            <Button
+              type="submit"
+              disabled={submitting || !name.trim()}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              {submitting ? "Se creeaza..." : "Creeaza scenariu"}
             </Button>
           </DialogFooter>
         </form>

@@ -40,8 +40,8 @@ export function ConversionFunnel({
   biggestDropoff,
 }: ConversionFunnelProps) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-fraunces font-bold text-slate-900">Funnel Conversie</h2>
           <p className="mt-1 text-sm text-slate-600">Luna curenta</p>
@@ -123,8 +123,8 @@ export function ConversionFunnel({
 
 export function ConversionFunnelSkeleton() {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-6 flex items-start justify-between">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-start justify-between">
         <div className="space-y-2">
           <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
           <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />

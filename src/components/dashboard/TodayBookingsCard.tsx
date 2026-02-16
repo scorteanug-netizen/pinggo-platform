@@ -28,8 +28,8 @@ export function TodayBookingsCard({ bookings }: TodayBookingsCardProps) {
   const router = useRouter();
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-4 flex items-center justify-between">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-green-500" />
           <h2 className="text-lg font-fraunces font-bold text-slate-900">Programari Astazi</h2>
@@ -39,13 +39,13 @@ export function TodayBookingsCard({ bookings }: TodayBookingsCardProps) {
           href="/calendar"
           className="inline-flex items-center gap-1 text-sm font-semibold text-orange-600 transition-colors duration-200 hover:text-orange-700"
         >
-          Vezi Calendar Complet
+          Calendar
           <ExternalLink className="h-4 w-4" />
         </Link>
       </div>
 
       {bookings.length === 0 ? (
-        <div className="py-6 text-center">
+        <div className="py-4 text-center">
           <Calendar className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="text-sm text-slate-500">Nicio programare astazi</p>
         </div>
@@ -108,8 +108,8 @@ export function TodayBookingsCard({ bookings }: TodayBookingsCardProps) {
 
 export function TodayBookingsCardSkeleton() {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-4 flex items-center justify-between">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <div className="h-5 w-44 animate-pulse rounded bg-slate-200" />
         <div className="h-4 w-20 animate-pulse rounded bg-slate-200" />
       </div>

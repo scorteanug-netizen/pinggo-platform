@@ -77,9 +77,9 @@
     repeating-linear-gradient(
       0deg,
       transparent,
-      transparent 100px,
-      rgba(249, 115, 22, 0.08) 100px,
-      rgba(249, 115, 22, 0.08) 101px
+      transparent 80px,
+      rgba(249, 115, 22, 0.08) 80px,
+      rgba(249, 115, 22, 0.08) 81px
     );
   pointer-events: none;
   z-index: 0;

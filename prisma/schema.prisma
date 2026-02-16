@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum MembershipRole {
@@ -28,6 +27,8 @@ enum UserGlobalRole {
 enum LeadStatus {
   NEW
   OPEN
+  WON
+  LOST
   QUALIFIED
   NOT_QUALIFIED
   SPAM
@@ -45,10 +46,55 @@ enum LeadSourceType {
   EMAIL
 }
 
+enum ProofChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+  CALL
+  MANUAL
+}
+
+enum ProofType {
+  SENT
+  DELIVERED
+  READ
+  REPLIED
+  BOOKED
+  MANUAL_CONFIRMED
+  INBOUND
+}
+
 enum SLAStageInstanceStatus {
   RUNNING
   STOPPED
   BREACHED
+}
+
+enum AutopilotRunStatus {
+  ACTIVE
+  COMPLETED
+  HANDED_OVER
+  FAILED
+}
+
+enum OutboundChannel {
+  WHATSAPP
+}
+
+enum OutboundMessageStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum AutopilotScenarioType {
+  QUALIFY_ONLY
+  QUALIFY_AND_BOOK
+}
+
+enum AutopilotScenarioMode {
+  RULES
+  AI
 }
 
 model Workspace {
@@ -63,7 +109,10 @@ model Workspace {
   slaStages     SLAStageInstance[]
   notifications Notification[]
   integrations  Integration[]
-  settings      WorkspaceSettings?
+  autopilotRuns      AutopilotRun[]
+  autopilotScenarios AutopilotScenario[]
+  outboundMessages   OutboundMessage[]
+  settings           WorkspaceSettings?
 
   @@index([disabledAt])
 }
@@ -78,8 +127,9 @@ model User {
   memberships    Membership[]
   ownedLeads     Lead[]         @relation("LeadOwner")
   leadEvents     LeadEvent[]    @relation("LeadEventActor")
-  editedFlows    Flow[]         @relation("FlowLastEditor")
+  editedFlows    Flow[]               @relation("FlowLastEditor")
   notifications  Notification[]
+  handoverScenarios AutopilotScenario[] @relation("ScenarioHandoverUser")
 
   accounts Account[]
   sessions Session[]
@@ -93,9 +143,9 @@ model Membership {
   invitedAt   DateTime?
   acceptedAt  DateTime?
   disabledAt  DateTime?
-  createdAt   DateTime       @default(now())
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@id([userId, workspaceId])
   @@index([workspaceId])
@@ -105,25 +155,165 @@ model Membership {
 }
 
 model Lead {
-  id                String             @id @default(cuid())
+  id                String             @id @default(uuid())
   workspaceId       String
+  firstName         String?
+  lastName          String?
+  email             String?
+  phone             String?
+  source            String?
   sourceType        LeadSourceType
   externalId        String?
   status            LeadStatus         @default(NEW)
+  ownerId           String?
   ownerUserId       String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   ownerUser         User?              @relation("LeadOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   identity          LeadIdentity?
+  slaState          SLAState?
+  proofEvents       ProofEvent[]
+  eventLogs         EventLog[]
+  autopilotRun      AutopilotRun?
+  outboundMessages  OutboundMessage[]
   events            LeadEvent[]
   slaStageInstances SLAStageInstance[]
   bookings          Booking[]
 
+  @@unique([workspaceId, sourceType, externalId])
   @@index([workspaceId, createdAt])
   @@index([ownerUserId])
   @@index([status])
-  @@unique([workspaceId, sourceType, externalId])
+}
+
+model SLAState {
+  id         String    @id @default(uuid())
+  leadId     String    @unique
+  startedAt  DateTime
+  deadlineAt DateTime
+  stoppedAt  DateTime?
+  stopReason String?
+  breachedAt DateTime?
+  lead       Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([deadlineAt])
+}
+
+model ProofEvent {
+  id                String       @id @default(uuid())
+  leadId            String
+  channel           ProofChannel
+  provider          String
+  providerMessageId String?
+  type              ProofType
+  occurredAt        DateTime
+  isManual          Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  lead              Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, occurredAt])
+  @@index([providerMessageId])
+  @@unique([leadId, providerMessageId, type, channel])
+}
+
+model EventLog {
+  id          String   @id @default(uuid())
+  leadId      String
+  actorUserId String?
+  eventType   String
+  payload     Json
+  occurredAt  DateTime @default(now())
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, occurredAt])
+  @@index([actorUserId])
+}
+
+model AutopilotScenario {
+  id                 String                 @id @default(uuid())
+  workspaceId        String
+  name               String
+  scenarioType       AutopilotScenarioType  @default(QUALIFY_ONLY)
+  mode               AutopilotScenarioMode  @default(RULES)
+  aiPrompt           String?
+  slaMinutes         Int                    @default(15)
+  maxQuestions        Int                    @default(2)
+  handoverUserId     String?
+  bookingConfigJson  Json?
+  isDefault          Boolean                @default(false)
+
+  // Company & agent context (used as variables in AI prompt)
+  agentName          String?
+  companyName        String?
+  companyDescription String?
+  offerSummary       String?
+  calendarLinkRaw    String?
+  language           String                 @default("ro")
+  tone               String?
+  knowledgeBaseJson  Json?
+
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  handoverUser       User?                  @relation("ScenarioHandoverUser", fields: [handoverUserId], references: [id], onDelete: SetNull)
+  autopilotRuns      AutopilotRun[]
+
+  @@index([workspaceId])
+  @@index([workspaceId, isDefault])
+  @@index([handoverUserId])
+}
+
+model AutopilotRun {
+  id              String              @id @default(uuid())
+  leadId          String              @unique
+  workspaceId     String
+  scenarioId      String?
+  status          AutopilotRunStatus  @default(ACTIVE)
+  currentStep     String              @default("welcome")
+  stateJson       Json?
+  lastInboundAt   DateTime?
+  lastOutboundAt  DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  lead            Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workspace       Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scenario        AutopilotScenario?  @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+
+  @@index([workspaceId, status])
+  @@index([scenarioId])
+}
+
+model OutboundMessage {
+  id                String                @id @default(uuid())
+  leadId            String
+  workspaceId       String
+  channel           OutboundChannel       @default(WHATSAPP)
+  toPhone           String?
+  text              String
+  provider          String?
+  providerMessageId String?
+  status            OutboundMessageStatus @default(QUEUED)
+  createdAt         DateTime              @default(now())
+  sentAt            DateTime?
+  lead              Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@index([workspaceId, status, createdAt])
+}
+
+model IdempotencyKey {
+  id          String   @id @default(uuid())
+  workspaceId String
+  key         String
+  requestHash String
+  responseJson Json?
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, key])
 }
 
 model LeadIdentity {

@@ -94,8 +94,8 @@ export function QuickActionsPanel({ permissions }: QuickActionsPanelProps) {
   }
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <h2 className="mb-4 text-lg font-fraunces font-bold text-slate-900">Actiuni Rapide</h2>
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <h2 className="mb-3 shrink-0 text-lg font-fraunces font-bold text-slate-900">Actiuni Rapide</h2>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map((action) => {

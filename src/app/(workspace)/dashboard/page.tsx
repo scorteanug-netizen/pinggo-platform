@@ -49,8 +49,8 @@ export default async function DashboardPage() {
     {
       id: "stats_cards",
       node: (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
-          <StatCard icon={Users} label="Total Leaduri" value={stats.totalLeads} accent="orange" spacious />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4 h-full">
+          <StatCard icon={Users} label="Total Leaduri" value={stats.totalLeads} accent="orange" />
 
           <StatCard
             icon={TrendingUp}
@@ -58,7 +58,6 @@ export default async function DashboardPage() {
             value={stats.newToday}
             helper="+12% vs ieri"
             accent="orange"
-            spacious
           />
 
           <StatCard
@@ -67,7 +66,6 @@ export default async function DashboardPage() {
             value={stats.qualified}
             helper="36% conversion"
             accent="violet"
-            spacious
           />
 
           <StatCard
@@ -76,7 +74,6 @@ export default async function DashboardPage() {
             value={stats.avgResponseTime}
             helper="Target: <15m"
             accent="orange"
-            spacious
           />
         </div>
       ),

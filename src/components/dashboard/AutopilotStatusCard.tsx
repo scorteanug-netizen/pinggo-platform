@@ -78,8 +78,8 @@ export async function AutopilotStatusCard({
   const activeFlowCount = activeFlows.length;
   if (activeFlowCount === 0) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-        <div className="mb-4 flex items-center justify-between">
+      <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+        <div className="mb-3 flex shrink-0 items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-violet-50 p-2">
               <Bot className="h-5 w-5 text-violet-500" />
@@ -98,7 +98,7 @@ export async function AutopilotStatusCard({
           </Link>
         </div>
 
-        <div className="py-6 text-center">
+        <div className="py-4 text-center">
           <Bot className="mx-auto mb-3 h-10 w-10 text-slate-300" />
           <p className="mb-3 text-sm text-slate-500">Niciun scenariu autopilot activ</p>
           <Link
@@ -174,8 +174,8 @@ export async function AutopilotStatusCard({
   });
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-4 flex items-center justify-between">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="rounded-lg bg-violet-50 p-2">
             <Bot className="h-5 w-5 text-violet-500" />
@@ -235,8 +235,8 @@ export async function AutopilotStatusCard({
 
 export function AutopilotStatusCardSkeleton() {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-      <div className="mb-4 flex items-center justify-between">
+    <section className="flex h-full min-h-0 flex-col overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200" />
           <div className="space-y-2">

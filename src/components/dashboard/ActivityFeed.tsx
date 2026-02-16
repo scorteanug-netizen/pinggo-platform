@@ -210,10 +210,10 @@ export function ActivityFeed({
   }, [events, hasMore, isLoadingMore, loadMore, router]);
 
   return (
-    <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] lg:h-[680px]">
-      <div className="border-b border-slate-200 px-6 py-4">
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="shrink-0 border-b border-slate-200 px-4 py-3">
         <h2 className="text-lg font-fraunces font-bold text-slate-900">Activitate Recenta</h2>
-        <p className="mt-1 text-sm text-slate-600">Live updates din sistem</p>
+        <p className="mt-0.5 text-sm text-slate-600">Live updates din sistem</p>
       </div>
       {content}
     </section>
@@ -222,8 +222,8 @@ export function ActivityFeed({
 
 export function ActivityFeedSkeleton() {
   return (
-    <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)] lg:h-[680px]">
-      <div className="border-b border-slate-200 px-6 py-4">
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="shrink-0 border-b border-slate-200 px-4 py-3">
         <div className="h-5 w-40 animate-pulse rounded bg-slate-200" />
         <div className="mt-2 h-4 w-32 animate-pulse rounded bg-slate-200" />
       </div>

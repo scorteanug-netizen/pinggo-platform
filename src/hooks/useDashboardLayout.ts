@@ -28,8 +28,8 @@ type HydratedLayoutPayload = {
 };
 
 const GRID_COLS = 12;
-const STORAGE_VERSION = "v3";
-const LEGACY_STORAGE_VERSIONS = ["v2"] as const;
+const STORAGE_VERSION = "v4";
+const LEGACY_STORAGE_VERSIONS = ["v3", "v2"] as const;
 const LEGACY_HEIGHT_SCALE_FACTOR = 0.65;
 
 function getStorageKey(role: AppRole, version = STORAGE_VERSION) {

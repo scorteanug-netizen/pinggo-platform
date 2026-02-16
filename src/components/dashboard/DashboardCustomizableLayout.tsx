@@ -186,15 +186,15 @@ export function DashboardCustomizableLayout({
           className={cn("dashboard-grid-layout", isEditMode ? "dashboard-grid-editing" : null)}
           layout={toGridLayoutItems(visibleLayout)}
           cols={12}
-          rowHeight={isEditMode ? 100 : 60}
-          margin={[24, isEditMode ? 16 : 8]}
+          rowHeight={80}
+          margin={[24, 16]}
           containerPadding={[0, 0]}
           isDraggable={isEditMode}
           isResizable={isEditMode}
           onLayoutChange={handleLayoutChange}
           draggableHandle=".widget-drag-handle"
           compactType="vertical"
-          preventCollision={!isEditMode}
+          preventCollision={false}
           useCSSTransforms={true}
           transformScale={1}
         >
@@ -235,7 +235,7 @@ export function DashboardCustomizableLayout({
                     </div>
                   ) : null}
 
-                  <div className="h-full overflow-hidden rounded-xl">{widgetNode}</div>
+                  <div className="h-full overflow-auto rounded-xl">{widgetNode}</div>
                 </div>
               </div>
             );
