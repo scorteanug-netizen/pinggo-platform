@@ -106,34 +106,25 @@ function buildMessages(input: AiPlannerInput) {
   });
 
   const remainingQuestions = maxQuestions - questionIndex - 1;
+  const intentOverride = !isLikelyFillingSlot(replyText) ? detectIntentFromKeywords(replyText) : null;
 
-  // System message: strict instructions
   const systemParts: string[] = [
-    "You are an AI assistant embedded in a WhatsApp autopilot.",
-    "You MUST respond with ONLY valid JSON — no markdown, no backticks, no extra text.",
+    "You are an AI assistant in a WhatsApp chat. Reply with ONLY valid JSON — no markdown, no backticks.",
     "",
-    "JSON schema you MUST follow:",
-    '{',
-    '  "nextText": "string (1-600 chars, Romanian language, WhatsApp-friendly)",',
-    '  "intent": "pricing" | "booking" | "other",',
-    '  "answers": { "key": "value" },',
-    '  "shouldHandover": boolean,',
-    '  "handoverReason": "string or null"',
-    '}',
+    "JSON schema:",
+    '{ "nextText": "string (max 600 chars, Romanian)", "intent": "pricing"|"booking"|"other", "answers": {}, "shouldHandover": boolean, "handoverReason": null }',
     "",
     "Rules:",
-    `- You have ${remainingQuestions} question(s) remaining before mandatory handover.`,
-    `- If remainingQuestions <= 0, set shouldHandover=true.`,
-    "- Keep messages short (1-3 sentences), friendly, professional.",
-    "- Language: Romanian.",
-    "- Never invent facts about the company or its services.",
-    "- If the lead's intent is unclear or you are uncertain, set shouldHandover=true.",
-    "- Extract intent from the lead's reply: pricing, booking, or other.",
-    "- Store any useful information the lead provided in the answers object.",
+    "- NEVER present numeric or list options (no '1) 2) 3)' or 'alege 1 sau 2'). Sound human.",
+    "- One short message only (max 2-3 sentences). End with EXACTLY one question.",
+    `- You have ${remainingQuestions} question(s) left before handover. If remainingQuestions <= 0, set shouldHandover=true.`,
+    "- Language: Romanian. Friendly, natural tone.",
+    "- Do not invent company facts. Store name, phone, email, service, preferredTime in answers when the lead provides them.",
+    intentOverride ? `- Lead intent (from keywords): ${intentOverride}. Use it; do not ask the lead to choose options.` : "",
     "",
-    "Company script (provided by the business owner):",
+    "Company context:",
     resolvedPrompt,
-  ];
+  ].filter(Boolean);
 
   // User message: conversation context
   const userParts: string[] = [];
@@ -148,10 +139,7 @@ function buildMessages(input: AiPlannerInput) {
   }
 
   userParts.push(`Conversation state: questionIndex=${questionIndex}, maxQuestions=${maxQuestions}`);
-
-  if (Object.keys(currentAnswers).length > 0) {
-    userParts.push(`Collected answers so far: ${JSON.stringify(currentAnswers)}`);
-  }
+  userParts.push(`Collected so far (intent, name, phone, email, service, preferredTime): ${JSON.stringify(currentAnswers)}`);
 
   if (recentOutboundTexts && recentOutboundTexts.length > 0) {
     userParts.push("");
@@ -225,67 +213,121 @@ function extractCompanyName(prompt: string): string {
   return "echipa noastra";
 }
 
-function detectIntent(text: string): string {
-  const lower = text.toLowerCase();
-  if (lower.includes("pret") || lower.includes("preț") || lower.includes("cost") || lower.includes("price")) {
+function detectIntentFromKeywords(text: string): string {
+  const lower = text.toLowerCase().trim();
+  if (lower.includes("pret") || lower.includes("preț") || lower.includes("cost") || lower.includes("price") || lower.includes("tarif")) {
     return "pricing";
   }
-  if (lower.includes("program") || lower.includes("booking") || lower.includes("calendar")) {
+  if (lower.includes("programare") || lower.includes("program") || lower.includes("booking") || lower.includes("calendar") || lower.includes("intalnire")) {
     return "booking";
   }
+  if (lower.includes("contact") || lower.includes("agent") || lower.includes("vorbesc") || lower.includes("operator")) {
+    return "contact";
+  }
   return "other";
+}
+
+function isLikelyFillingSlot(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (t.includes("@") && t.length <= 80) return true;
+  if (/^[\d+\s\-()]{7,}$/.test(t)) return true;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length <= 2 && words.every((w) => /^[A-Za-z\u0080-\u024F]+$/.test(w)) && t.length <= 40) return true;
+  return false;
+}
+
+function detectIntent(text: string): string {
+  return detectIntentFromKeywords(text);
+}
+
+const COLLECTED_KEYS = ["intent", "name", "phone", "email", "service", "preferredTime"] as const;
+function getNextMissingSlot(answers: Record<string, string>): (typeof COLLECTED_KEYS)[number] | null {
+  for (const key of COLLECTED_KEYS) {
+    if (!answers[key]?.trim()) return key;
+  }
+  return null;
 }
 
 function rulesFallback(input: AiPlannerInput): AiPlannerOutput {
   const { aiPrompt, maxQuestions, questionIndex, replyText, firstName, currentAnswers } = input;
 
   const companyName = extractCompanyName(aiPrompt);
-  const name = firstName?.trim() || "";
-  const greeting = name ? `${name}, ` : "";
   const nextQIndex = questionIndex + 1;
+  const answersUpdate: Record<string, string> = {};
 
   if (nextQIndex >= maxQuestions) {
-    const intent = currentAnswers.intent ?? detectIntent(replyText);
+    const intent = currentAnswers.intent ?? (isLikelyFillingSlot(replyText) ? "other" : detectIntentFromKeywords(replyText));
+    if (!currentAnswers.intent) answersUpdate.intent = intent;
+    const slot = getNextMissingSlot(currentAnswers);
+    if (slot === "name") answersUpdate.name = replyText.trim();
+    else if (slot === "phone") answersUpdate.phone = replyText.trim();
+    else if (slot === "email") answersUpdate.email = replyText.trim();
+    else if (slot === "service") answersUpdate.service = replyText.trim();
+    else if (slot === "preferredTime") answersUpdate.preferredTime = replyText.trim();
+    else answersUpdate[`q${questionIndex}_answer`] = replyText;
     return {
-      nextMessage: `${greeting}multumesc pentru detalii! Te conectez cu un specialist de la ${companyName}.`,
+      nextMessage: `Multumesc! Te conectez cu un coleg de la ${companyName}.`,
       shouldHandover: true,
       intent,
-      answersUpdate: {
-        [`q${questionIndex}_answer`]: replyText,
-        ...(currentAnswers.intent ? {} : { intent }),
-      },
+      answersUpdate,
       fallbackUsed: true,
     };
   }
 
   if (questionIndex === 0) {
-    const intent = detectIntent(replyText);
-    let followUp: string;
-    switch (intent) {
-      case "pricing":
-        followUp = `${greeting}super! La ${companyName} avem mai multe optiuni. Pentru ce serviciu/produs vrei informatii de pret?`;
-        break;
-      case "booking":
-        followUp = `${greeting}perfect! La ${companyName} te putem programa rapid. Ce zi preferi?`;
-        break;
-      default:
-        followUp = `${greeting}multumesc! La ${companyName} suntem aici sa te ajutam. Spune-mi mai multe detalii despre ce te intereseaza.`;
-        break;
+    if (!isLikelyFillingSlot(replyText)) answersUpdate.intent = detectIntentFromKeywords(replyText);
+    else {
+      answersUpdate.name = replyText.trim();
+      if (!currentAnswers.intent) answersUpdate.intent = "other";
     }
+    if (!answersUpdate.intent && !currentAnswers.intent) answersUpdate.intent = "other";
     return {
-      nextMessage: followUp,
+      nextMessage: "Salut! Cu ce te pot ajuta azi?",
       shouldHandover: false,
-      intent,
-      answersUpdate: { intent },
+      intent: answersUpdate.intent || currentAnswers.intent || "other",
+      answersUpdate,
       fallbackUsed: true,
     };
   }
 
+  const slot = getNextMissingSlot(currentAnswers);
+  if (slot === "intent") {
+    if (!isLikelyFillingSlot(replyText)) answersUpdate.intent = detectIntentFromKeywords(replyText);
+    else answersUpdate.name = replyText.trim();
+    if (!answersUpdate.intent && !currentAnswers.intent) answersUpdate.intent = "other";
+  } else if (slot === "name") answersUpdate.name = replyText.trim();
+  else if (slot === "phone") answersUpdate.phone = replyText.trim();
+  else if (slot === "email") answersUpdate.email = replyText.trim();
+  else if (slot === "service") answersUpdate.service = replyText.trim();
+  else if (slot === "preferredTime") answersUpdate.preferredTime = replyText.trim();
+  else answersUpdate[`q${questionIndex}_answer`] = replyText;
+
+  const merged = { ...currentAnswers, ...answersUpdate };
+  const nextSlot = getNextMissingSlot(merged);
+  const name = merged.name || firstName?.trim() || "";
+  const greeting = name ? `${name}, ` : "";
+
+  let nextMessage: string;
+  if (nextSlot === "intent" || !nextSlot) nextMessage = "Cu ce te pot ajuta azi?";
+  else if (nextSlot === "name") nextMessage = `${greeting}Cum te numesti?`;
+  else if (nextSlot === "phone") nextMessage = `${greeting}Ce numar de telefon ai?`;
+  else if (nextSlot === "email") nextMessage = `${greeting}Ce adresa de email?`;
+  else if (nextSlot === "service") {
+    const intent = merged.intent || "other";
+    nextMessage = intent === "pricing"
+      ? `${greeting}Pentru ce serviciu vrei informatii de pret?`
+      : intent === "booking"
+        ? `${greeting}Pentru ce serviciu vrei programarea?`
+        : `${greeting}Spune-mi pe scurt ce ai nevoie.`;
+  } else if (nextSlot === "preferredTime") nextMessage = `${greeting}Ce zi sau interval preferi?`;
+  else nextMessage = "Mai ai ceva de adaugat?";
+
   return {
-    nextMessage: `${greeting}am inteles. Mai ai alte intrebari pentru ${companyName}?`,
+    nextMessage,
     shouldHandover: false,
-    intent: null,
-    answersUpdate: { [`q${questionIndex}_answer`]: replyText },
+    intent: merged.intent || null,
+    answersUpdate,
     fallbackUsed: true,
   };
 }

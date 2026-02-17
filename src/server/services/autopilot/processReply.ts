@@ -1,6 +1,11 @@
 /**
  * Core autopilot reply logic - shared by POST /api/v1/autopilot/reply and inbound webhook.
  * Processes an inbound message and advances the autopilot state.
+ *
+ * Split into three phases to avoid transaction timeout (no network/OpenAI inside tx):
+ * - Phase A (tx): read run/lead/scenario, create inbound EventLog.
+ * - Phase B (no tx): resolve transition (AI or RULES) — may call OpenAI.
+ * - Phase C (tx): persist transition, create outbound/events.
  */
 import {
   AutopilotRunStatus,
@@ -10,6 +15,7 @@ import {
   OutboundMessageStatus,
   Prisma,
 } from "@prisma/client";
+import { prisma } from "@/server/db";
 import { getDefaultScenario } from "./getDefaultScenario";
 import { aiPlanner } from "./aiPlanner";
 import { buildScenarioPrompt, promptPreview } from "./promptBuilder";
@@ -34,26 +40,44 @@ type TransitionResult = {
   fallbackUsed?: boolean;
 };
 
-function resolveIntentFromReply(replyText: string): { intent: string; intentLabel: string } {
-  const lower = replyText.toLowerCase();
-  if (lower.includes("1") || lower.includes("pret") || lower.includes("preț")) {
-    return { intent: "pricing", intentLabel: "q2_pricing" };
+/** Deterministic intent from keywords. Never use numeric menu (1/2/3). */
+function detectIntentFromKeywords(replyText: string): string {
+  const lower = replyText.toLowerCase().trim();
+  if (lower.includes("pret") || lower.includes("preț") || lower.includes("cost") || lower.includes("price") || lower.includes("tarif")) {
+    return "pricing";
   }
-  if (lower.includes("2") || lower.includes("program")) {
-    return { intent: "booking", intentLabel: "q2_booking" };
+  if (lower.includes("programare") || lower.includes("program") || lower.includes("booking") || lower.includes("calendar") || lower.includes("intalnire") || lower.includes("întâlnire")) {
+    return "booking";
   }
-  return { intent: "other", intentLabel: "q2_other" };
+  if (lower.includes("contact") || lower.includes("agent") || lower.includes("vorbesc") || lower.includes("operator")) {
+    return "contact";
+  }
+  return "other";
 }
 
-function getFollowUpForIntent(intent: string): string {
-  switch (intent) {
-    case "pricing":
-      return "Super. Pentru ce serviciu/produs vrei pret?";
-    case "booking":
-      return "Perfect. Pentru ce zi preferi programarea? (ex: luni/marti)";
-    default:
-      return "Spune-mi pe scurt detaliile si revin imediat.";
+/** True if message looks like only name, email, or phone (filling a slot), not an intent. */
+function isLikelyFillingSlot(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (t.includes("@") && t.length <= 80) return true;
+  if (/^[\d+\s\-()]{7,}$/.test(t)) return true;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length <= 2 && words.every((w) => /^[A-Za-z\u0080-\u024F]+$/.test(w)) && t.length <= 40) return true;
+  return false;
+}
+
+/** Greetings: do not treat as intent; next slot stays "intent" so next reply fills it. */
+function isGreeting(text: string): boolean {
+  const lower = text.toLowerCase().trim();
+  return /^(salut|buna|bună|hi|hello|hey|ciao|servus)$/.test(lower) || lower.startsWith("buna ") || lower.startsWith("bună ");
+}
+
+const COLLECTED_KEYS = ["intent", "name", "phone", "email", "service", "preferredTime"] as const;
+function getNextMissingSlot(answers: Record<string, string>): (typeof COLLECTED_KEYS)[number] | null {
+  for (const key of COLLECTED_KEYS) {
+    if (!answers[key]?.trim()) return key;
   }
+  return null;
 }
 
 function parseStateJson(raw: Prisma.JsonValue | null | undefined): AutopilotStateJson {
@@ -68,35 +92,19 @@ function parseStateJson(raw: Prisma.JsonValue | null | undefined): AutopilotStat
   return { node, answers, questionIndex };
 }
 
+type RulesScenarioContext = { companyName?: string | null; calendarLinkRaw?: string | null };
+
 function resolveRulesTransition(
   stateBefore: AutopilotStateJson,
   text: string,
   maxQuestions: number,
-  firstName: string | null
+  firstName: string | null,
+  scenarioContext?: RulesScenarioContext
 ): TransitionResult {
   const nodeBefore = stateBefore.node;
   const currentQIndex = stateBefore.questionIndex;
-
-  if (nodeBefore === "q1") {
-    const { intent, intentLabel } = resolveIntentFromReply(text);
-    const newQIndex = currentQIndex + 1;
-    if (newQIndex >= maxQuestions) {
-      return {
-        nextNode: "handover",
-        outboundText: "Multumesc! Te conectez cu un agent.",
-        answersUpdate: { intent },
-        terminal: true,
-        newQuestionIndex: newQIndex,
-      };
-    }
-    return {
-      nextNode: intentLabel,
-      outboundText: getFollowUpForIntent(intent),
-      answersUpdate: { intent },
-      terminal: false,
-      newQuestionIndex: newQIndex,
-    };
-  }
+  const answers = stateBefore.answers;
+  const company = scenarioContext?.companyName?.trim() || "echipa noastra";
 
   if (nodeBefore === "handover") {
     return {
@@ -109,20 +117,94 @@ function resolveRulesTransition(
   }
 
   const newQIndex = currentQIndex + 1;
+  const answersUpdate: Record<string, string> = {};
+
+  if (currentQIndex === 0) {
+    if (isGreeting(text)) {
+      // leave intent unset so next turn we collect intent (e.g. "Vreau programare")
+    } else if (!isLikelyFillingSlot(text)) {
+      answersUpdate.intent = detectIntentFromKeywords(text);
+    } else {
+      answersUpdate.name = text.trim();
+      answersUpdate.intent = answers.intent || "other";
+    }
+    if (!isGreeting(text) && !answersUpdate.intent && !answers.intent) answersUpdate.intent = "other";
+    if (newQIndex >= maxQuestions) {
+      return {
+        nextNode: "handover",
+        outboundText: "Multumesc! Te conectez cu un coleg.",
+        answersUpdate,
+        terminal: true,
+        newQuestionIndex: newQIndex,
+      };
+    }
+    return {
+      nextNode: "qualify",
+      outboundText: "Salut! Cu ce te pot ajuta azi?",
+      answersUpdate,
+      terminal: false,
+      newQuestionIndex: newQIndex,
+    };
+  }
+
+  const slotWeJustFilled = getNextMissingSlot(answers) || "intent";
+  if (slotWeJustFilled === "intent") {
+    if (!answers.intent && !isLikelyFillingSlot(text)) answersUpdate.intent = detectIntentFromKeywords(text);
+    else if (isLikelyFillingSlot(text)) answersUpdate.name = text.trim();
+    if (!answersUpdate.intent && !answers.intent) answersUpdate.intent = "other";
+  } else if (slotWeJustFilled === "name") {
+    answersUpdate.name = text.trim();
+  } else if (slotWeJustFilled === "phone") {
+    answersUpdate.phone = text.trim();
+  } else if (slotWeJustFilled === "email") {
+    answersUpdate.email = text.trim();
+  } else if (slotWeJustFilled === "service") {
+    answersUpdate.service = text.trim();
+  } else if (slotWeJustFilled === "preferredTime") {
+    answersUpdate.preferredTime = text.trim();
+  }
+
+  const merged = { ...answers, ...answersUpdate };
   if (newQIndex >= maxQuestions) {
     return {
       nextNode: "handover",
-      outboundText: "Multumesc! Te conectez cu un agent.",
-      answersUpdate: { [`q${currentQIndex}_answer`]: text },
+      outboundText: scenarioContext?.calendarLinkRaw?.trim()
+        ? "Multumesc! Iata link-ul pentru programare. Te asteptam."
+        : "Multumesc! Te conectez cu un coleg.",
+      answersUpdate,
       terminal: true,
       newQuestionIndex: newQIndex,
     };
   }
 
+  const nextSlot = getNextMissingSlot(merged);
+  let outboundText: string;
+  const greeting = (merged.name || firstName) ? `${merged.name || firstName}, ` : "";
+  if (nextSlot === "intent" || !nextSlot) {
+    outboundText = "Cu ce te pot ajuta azi?";
+  } else if (nextSlot === "name") {
+    outboundText = `${greeting}Cum te numesti?`;
+  } else if (nextSlot === "phone") {
+    outboundText = `${greeting}Ce numar de telefon ai?`;
+  } else if (nextSlot === "email") {
+    outboundText = `${greeting}Ce adresa de email?`;
+  } else if (nextSlot === "service") {
+    const intent = merged.intent || "other";
+    outboundText = intent === "pricing"
+      ? `${greeting}Pentru ce serviciu vrei informatii de pret?`
+      : intent === "booking"
+        ? `${greeting}Pentru ce serviciu vrei programarea?`
+        : `${greeting}Spune-mi pe scurt ce ai nevoie.`;
+  } else if (nextSlot === "preferredTime") {
+    outboundText = `${greeting}Ce zi sau interval preferi?`;
+  } else {
+    outboundText = "Mai ai ceva de adaugat?";
+  }
+
   return {
-    nextNode: `q${newQIndex + 1}`,
-    outboundText: "Mai ai detalii de adaugat?",
-    answersUpdate: { [`q${currentQIndex}_answer`]: text },
+    nextNode: "qualify",
+    outboundText: outboundText.trim(),
+    answersUpdate,
     terminal: false,
     newQuestionIndex: newQIndex,
   };
@@ -200,27 +282,44 @@ export type ProcessReplyResult = {
   autopilot: { status: string; node: string; answers: Record<string, string> };
   queuedMessage: { id: string; text: string; toPhone: string } | null;
   messageBlocked?: boolean;
+  /** Set when status is HANDED_OVER, for agent notification */
+  handoverUserId?: string | null;
+  scenarioId?: string | null;
+  /** Last inbound text, for handover summary */
+  lastInboundText?: string;
 };
 
-/**
- * Process an autopilot reply. Must be called within a transaction.
- * Returns null if AutopilotRun not found.
- */
-export async function processAutopilotReply(
-  tx: TxClient,
-  params: { leadId: string; text: string }
-): Promise<ProcessReplyResult | null> {
-  const { leadId, text } = params;
+/** Payload from Phase A (DB-only) for Phase B (AI/RULES) and Phase C (persist). */
+type PhaseAPayload = {
+  leadId: string;
+  text: string;
+  run: { id: string; status: string; stateJson: unknown; workspaceId: string; scenarioId: string | null };
+  lead: { firstName: string | null; phone: string | null; email: string | null; source: string | null; externalId: string | null; identity: { phone: string | null } | null } | null;
+  scenario: {
+    id: string;
+    maxQuestions: number;
+    mode: string;
+    handoverUserId: string | null;
+    aiPrompt: string;
+    agentName: string | null;
+    companyName: string | null;
+    companyDescription: string | null;
+    offerSummary: string | null;
+    calendarLinkRaw: string | null;
+  };
+  scenarioId: string;
+  stateBefore: AutopilotStateJson;
+  nodeBefore: string;
+  now: Date;
+  recentEvents?: Array<{ eventType: string; text?: string; at?: string }>;
+  recentOutboundTexts?: string[];
+};
 
+/** Phase A: DB-only. Read run/lead/scenario, create inbound EventLog. No network. */
+async function phaseA(tx: TxClient, leadId: string, text: string): Promise<PhaseAPayload | null> {
   const run = await tx.autopilotRun.findUnique({
     where: { leadId },
-    select: {
-      id: true,
-      status: true,
-      stateJson: true,
-      workspaceId: true,
-      scenarioId: true,
-    },
+    select: { id: true, status: true, stateJson: true, workspaceId: true, scenarioId: true },
   });
   if (!run) return null;
 
@@ -259,7 +358,6 @@ export async function processAutopilotReply(
       calendarLinkRaw: true,
     },
   });
-
   if (!scenario) {
     const defaultScenario = await getDefaultScenario(tx, run.workspaceId);
     scenario = await tx.autopilotScenario.findUnique({
@@ -281,16 +379,13 @@ export async function processAutopilotReply(
   }
   if (!scenario) return null;
 
-  const maxQuestions = scenario.maxQuestions ?? 2;
-  const handoverUserId = scenario.handoverUserId ?? null;
-  const mode = scenario.mode;
-  const aiPrompt = scenario.aiPrompt ?? "";
-
   const stateBefore = parseStateJson(run.stateJson);
   const nodeBefore = stateBefore.node;
+  const now = new Date();
 
-  let transition: TransitionResult;
-  if (mode === AutopilotScenarioMode.AI) {
+  let recentEvents: PhaseAPayload["recentEvents"];
+  let recentOutboundTexts: string[] | undefined;
+  if (scenario.mode === AutopilotScenarioMode.AI) {
     const [recentEventsRaw, recentOutboundRaw] = await Promise.all([
       tx.eventLog.findMany({
         where: { leadId },
@@ -305,26 +400,50 @@ export async function processAutopilotReply(
         select: { text: true },
       }),
     ]);
-
-    const recentEvents = recentEventsRaw.reverse().map((e) => {
+    recentEvents = recentEventsRaw.reverse().map((e) => {
       const p = e.payload as Record<string, unknown> | null;
-      return {
-        eventType: e.eventType,
-        text: (p?.text as string) ?? undefined,
-        at: e.occurredAt?.toISOString(),
-      };
+      return { eventType: e.eventType, text: (p?.text as string) ?? undefined, at: e.occurredAt?.toISOString() };
     });
-    const recentOutboundTexts = recentOutboundRaw
-      .reverse()
-      .map((m) => m.text)
-      .filter((t): t is string => t !== null);
+    recentOutboundTexts = recentOutboundRaw.reverse().map((m) => m.text).filter((t): t is string => t !== null);
+  }
 
-    transition = await resolveAiTransition({
+  await tx.eventLog.create({
+    data: {
+      leadId,
+      eventType: "autopilot_inbound",
+      payload: { text, nodeBefore, scenarioId, mode: scenario.mode } as unknown as Prisma.InputJsonValue,
+      occurredAt: now,
+    },
+  });
+
+  return {
+    leadId,
+    text,
+    run,
+    lead,
+    scenario,
+    scenarioId,
+    stateBefore,
+    nodeBefore,
+    now,
+    recentEvents,
+    recentOutboundTexts,
+  };
+}
+
+/** Phase B: No DB. Compute transition (may call OpenAI). */
+async function phaseB(payload: PhaseAPayload): Promise<TransitionResult> {
+  const { scenario, stateBefore, text, lead, recentEvents, recentOutboundTexts } = payload;
+  const maxQuestions = scenario.maxQuestions ?? 2;
+  const mode = scenario.mode;
+
+  if (mode === AutopilotScenarioMode.AI) {
+    return resolveAiTransition({
       stateBefore,
       text,
       maxQuestions,
       firstName: lead?.firstName ?? null,
-      aiPrompt,
+      aiPrompt: scenario.aiPrompt,
       scenarioContext: {
         agentName: scenario.agentName,
         companyName: scenario.companyName,
@@ -338,50 +457,40 @@ export async function processAutopilotReply(
         source: lead?.source,
         externalId: lead?.externalId,
       },
-      recentEvents,
-      recentOutboundTexts,
+      recentEvents: recentEvents ?? [],
+      recentOutboundTexts: recentOutboundTexts ?? [],
     });
-  } else {
-    transition = resolveRulesTransition(
-      stateBefore,
-      text,
-      maxQuestions,
-      lead?.firstName ?? null
-    );
   }
+  return resolveRulesTransition(
+    stateBefore,
+    text,
+    maxQuestions,
+    lead?.firstName ?? null,
+    { companyName: scenario.companyName, calendarLinkRaw: scenario.calendarLinkRaw }
+  );
+}
 
+/** Phase C: DB-only. Persist transition, create outbound/events. */
+async function phaseC(
+  tx: TxClient,
+  payload: PhaseAPayload,
+  transition: TransitionResult
+): Promise<ProcessReplyResult> {
+  const { leadId, text, run, lead, scenario, scenarioId, stateBefore, now } = payload;
+  const maxQuestions = scenario.maxQuestions ?? 2;
+  const handoverUserId = scenario.handoverUserId ?? null;
   const newAnswers = { ...stateBefore.answers, ...transition.answersUpdate };
   const newState: AutopilotStateJson = {
     node: transition.nextNode,
     answers: newAnswers,
     questionIndex: transition.newQuestionIndex,
   };
-
-  const now = new Date();
   let newStatus = run.status;
-  if (transition.terminal) {
-    newStatus = AutopilotRunStatus.HANDED_OVER;
-  }
+  if (transition.terminal) newStatus = AutopilotRunStatus.HANDED_OVER;
 
-  await tx.eventLog.create({
-    data: {
-      leadId,
-      eventType: "autopilot_inbound",
-      payload: {
-        text,
-        nodeBefore,
-        scenarioId,
-        mode,
-        ...(transition.aiMeta ? { aiMeta: transition.aiMeta } : {}),
-        ...(transition.fallbackUsed !== undefined ? { fallbackUsed: transition.fallbackUsed } : {}),
-      } as unknown as Prisma.InputJsonValue,
-      occurredAt: now,
-    },
-  });
-
-  if (mode === AutopilotScenarioMode.AI) {
+  if (scenario.mode === AutopilotScenarioMode.AI) {
     const resolvedPrompt = buildScenarioPrompt({
-      aiPrompt,
+      aiPrompt: scenario.aiPrompt,
       agentName: scenario.agentName,
       companyName: scenario.companyName,
       companyDescription: scenario.companyDescription,
@@ -390,7 +499,6 @@ export async function processAutopilotReply(
       maxQuestions,
       leadName: lead?.firstName,
     });
-
     await tx.eventLog.create({
       data: {
         leadId,
@@ -439,11 +547,7 @@ export async function processAutopilotReply(
     });
     return {
       leadId,
-      autopilot: {
-        status: newStatus,
-        node: transition.nextNode,
-        answers: newAnswers,
-      },
+      autopilot: { status: newStatus, node: transition.nextNode, answers: newAnswers },
       queuedMessage: null,
       messageBlocked: true,
     };
@@ -471,10 +575,7 @@ export async function processAutopilotReply(
       data: {
         leadId,
         eventType: "autopilot_handover",
-        payload: {
-          scenarioId,
-          handoverUserId,
-        } as unknown as Prisma.InputJsonValue,
+        payload: { scenarioId, handoverUserId } as unknown as Prisma.InputJsonValue,
         occurredAt: now,
       },
     });
@@ -488,6 +589,7 @@ export async function processAutopilotReply(
         messageId: outbound.id,
         nodeAfter: transition.nextNode,
         scenarioId,
+        text: transition.outboundText,
       } as unknown as Prisma.InputJsonValue,
       occurredAt: now,
     },
@@ -495,15 +597,26 @@ export async function processAutopilotReply(
 
   return {
     leadId,
-    autopilot: {
-      status: newStatus,
-      node: transition.nextNode,
-      answers: newAnswers,
-    },
-    queuedMessage: {
-      id: outbound.id,
-      text: outbound.text,
-      toPhone,
-    },
+    autopilot: { status: newStatus, node: transition.nextNode, answers: newAnswers },
+    queuedMessage: { id: outbound.id, text: outbound.text, toPhone },
+    ...(transition.terminal && handoverUserId ? { handoverUserId, scenarioId, lastInboundText: text } : {}),
   };
+}
+
+/**
+ * Process an autopilot reply. Uses two short DB transactions and one slow phase (AI) outside any transaction.
+ * Returns null if AutopilotRun not found.
+ */
+export async function processAutopilotReply(params: {
+  leadId: string;
+  text: string;
+}): Promise<ProcessReplyResult | null> {
+  const { leadId, text } = params;
+
+  const payload = await prisma.$transaction((tx) => phaseA(tx, leadId, text));
+  if (!payload) return null;
+
+  const transition = await phaseB(payload);
+
+  return prisma.$transaction((tx) => phaseC(tx, payload, transition));
 }

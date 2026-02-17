@@ -102,6 +102,9 @@ const EVENT_LABELS: Record<string, string> = {
   autopilot_inbound: "Reply primit (autopilot)",
   whatsapp_inbound: "Mesaj WhatsApp primit",
   message_blocked: "Mesaj blocat: lipseste numar",
+  handover_notified: "Agent notificat",
+  handover_notification_failed: "Notificare agent esuata",
+  handover_notification_blocked: "Notificare agent blocata",
 };
 
 function toLabel(value: string) {

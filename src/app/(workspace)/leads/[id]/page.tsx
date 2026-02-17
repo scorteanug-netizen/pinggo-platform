@@ -11,6 +11,7 @@ import { getLeadDetailScoped } from "@/server/services/leadService";
 import { detectBreaches } from "@/server/services/slaService";
 import { AutopilotSection } from "./AutopilotSection";
 import { LeadActions } from "./LeadActions";
+import { TimelineCards } from "./TimelineCards";
 import { EditLeadButton } from "@/app/app/leads/[id]/EditLeadButton";
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
@@ -68,6 +69,13 @@ const EVENT_TYPE_LABEL: Record<string, string> = {
   autopilot_booking_offered: "Link de programare trimis",
   handover_requested: "Transfer catre operator solicitat",
   message_blocked: "Mesaj blocat: lipseste numar",
+  whatsapp_inbound: "Mesaj WhatsApp primit",
+  autopilot_inbound: "Reply primit (autopilot)",
+  autopilot_ai_planned: "AI planner",
+  message_queued: "Mesaj in coada",
+  handover_notified: "Agent notificat",
+  handover_notification_failed: "Notificare agent esuata",
+  handover_notification_blocked: "Notificare agent blocata",
 };
 
 const ASSIGNMENT_METHOD_LABEL: Record<string, string> = {
@@ -461,6 +469,17 @@ function createTimelinePresentation(params: {
     };
   }
 
+  if (event.type === "whatsapp_inbound") {
+    addDetail("Mesaj", truncateText(readString(payload, "text"), 140));
+    addDetail("De la", readString(payload, "from"));
+    return {
+      title: toEventTypeLabel(event.type),
+      subtitle: "Mesaj primit pe WhatsApp",
+      details,
+      tone: "neutral" as const,
+    };
+  }
+
   if (event.type === "autopilot_message_received") {
     addDetail("Mesaj client", truncateText(readString(payload, "message"), 140));
     return {
@@ -678,8 +697,8 @@ export default async function LeadDetailPage({
     lead.identity?.phone ||
     lead.id;
 
-  // Autopilot + SLA: query real AutopilotRun, EventLog, SLAState, scenarios
-  const [autopilotRunRow, autopilotEventLogs, slaState, scenarios] = await Promise.all([
+  // Autopilot + SLA: query real AutopilotRun, EventLog, SLAState, scenarios, OutboundMessages
+  const [autopilotRunRow, autopilotEventLogs, slaState, scenarios, outboundMessagesRaw] = await Promise.all([
     prisma.autopilotRun.findUnique({
       where: { leadId: lead.id },
       select: {
@@ -727,7 +746,28 @@ export default async function LeadDetailPage({
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       select: { id: true, name: true, mode: true },
     }),
+    prisma.outboundMessage.findMany({
+      where: { leadId: lead.id },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        text: true,
+        status: true,
+        createdAt: true,
+        providerMessageId: true,
+        toPhone: true,
+      },
+    }),
   ]);
+
+  const outboundMessages = outboundMessagesRaw.map((m) => ({
+    id: m.id,
+    text: m.text,
+    status: m.status,
+    createdAt: m.createdAt?.toISOString() ?? new Date().toISOString(),
+    providerMessageId: m.providerMessageId,
+    toPhone: m.toPhone,
+  }));
 
   const autopilotRun = autopilotRunRow
     ? {
@@ -858,6 +898,7 @@ export default async function LeadDetailPage({
             leadId={lead.id}
             autopilotRun={autopilotRun}
             eventLogTimeline={eventLogTimeline}
+            outboundMessages={outboundMessages}
             scenarios={scenarios}
           />
         </CardContent>
@@ -1013,8 +1054,8 @@ export default async function LeadDetailPage({
             {lead.events.length === 0 ? (
               <p className="text-sm text-slate-600">Nu exista evenimente pentru acest lead.</p>
             ) : (
-              <ul className="space-y-2">
-                {lead.events.map((event) => {
+              <TimelineCards
+                items={lead.events.map((event) => {
                   const timeline = createTimelinePresentation({
                     event,
                     definitionMap,
@@ -1022,57 +1063,23 @@ export default async function LeadDetailPage({
                   });
                   const summary = buildTimelineSummary(timeline);
                   const toneClasses = getTimelineToneClasses(timeline.tone);
-
-                  return (
-                    <li
-                      key={event.id}
-                      className="rounded-xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 px-3 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`mt-0.5 h-2.5 w-2.5 rounded-full ${toneClasses.dotClass}`} />
-                            <p className="text-sm font-semibold text-slate-900">{timeline.title}</p>
-                          </div>
-                          {timeline.subtitle ? (
-                            <p className="mt-1 text-xs text-slate-500">{timeline.subtitle}</p>
-                          ) : null}
-                        </div>
-                        <p className="text-xs text-slate-500">{formatDateTime(event.createdAt)}</p>
-                      </div>
-
-                      <p className="mt-2 text-sm text-slate-700">{summary}</p>
-
-                      {timeline.details.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {timeline.details.map((detail, index) => (
-                            <span
-                              key={`${event.id}-${detail.label}-${index}`}
-                              className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${toneClasses.chipClass}`}
-                            >
-                              {detail.label}: {detail.value}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                        <summary className="cursor-pointer text-xs font-medium text-slate-600">
-                          Detalii tehnice
-                        </summary>
-                        <pre className="mt-2 overflow-x-auto rounded-md bg-white p-2 text-[11px] leading-relaxed text-slate-600">
-{safeJsonStringify({
-  id: event.id,
-  type: event.type,
-  actorUserId: event.actorUserId,
-  payload: event.payload,
-})}
-                        </pre>
-                      </details>
-                    </li>
-                  );
+                  return {
+                    id: event.id,
+                    createdAtLabel: formatDateTime(event.createdAt),
+                    title: timeline.title,
+                    subtitle: timeline.subtitle,
+                    details: timeline.details,
+                    summary,
+                    toneClasses,
+                    payloadForJson: {
+                      id: event.id,
+                      type: event.type,
+                      actorUserId: event.actorUserId,
+                      payload: event.payload,
+                    },
+                  };
                 })}
-              </ul>
+              />
             )}
           </CardContent>
         </Card>

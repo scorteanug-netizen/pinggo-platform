@@ -49,11 +49,13 @@ export async function sendWhatsAppMessage(
 
   const client = Twilio(config.accountSid, config.authToken);
   const to = toWhatsAppNumber(input.toPhone);
+  const statusCallbackUrl = process.env.TWILIO_STATUS_CALLBACK_URL?.trim();
 
   const message = await client.messages.create({
     body: input.body,
     from: config.from,
     to,
+    ...(statusCallbackUrl ? { statusCallback: statusCallbackUrl } : {}),
   });
 
   return {

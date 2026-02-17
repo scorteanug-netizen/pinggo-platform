@@ -128,9 +128,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 4) Call autopilot reply logic
-      await processAutopilotReply(tx, { leadId: lead.id, text });
-
       return {
         leadId: lead.id,
         processed: true,
@@ -138,6 +135,11 @@ export async function POST(request: NextRequest) {
         status: 201 as const,
       };
     });
+
+    // Process autopilot reply outside transaction (may call OpenAI)
+    if (result.processed && result.leadId) {
+      await processAutopilotReply({ leadId: result.leadId, text });
+    }
 
     const status = result.status;
     return NextResponse.json(

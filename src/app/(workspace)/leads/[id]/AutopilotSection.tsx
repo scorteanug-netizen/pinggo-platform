@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ---------------------------------------------------------------------------
@@ -38,10 +39,48 @@ type EventLogItem = {
   occurredAt: string;
 };
 
+type OutboundMessageItem = {
+  id: string;
+  text: string;
+  status: string;
+  createdAt: string;
+  providerMessageId: string | null;
+  toPhone: string | null;
+};
+
+type ChatItem =
+  | {
+      kind: "inbound";
+      id: string;
+      listKey: string;
+      text: string;
+      senderPhone: string;
+      occurredAt: string;
+      rawJson: unknown;
+    }
+  | {
+      kind: "outbound";
+      id: string;
+      listKey: string;
+      text: string;
+      statusLabel: string;
+      createdAt: string;
+      rawJson: unknown;
+    }
+  | {
+      kind: "system";
+      id: string;
+      listKey: string;
+      text: string;
+      occurredAt: string;
+      rawJson: unknown;
+    };
+
 type AutopilotSectionProps = {
   leadId: string;
   autopilotRun: AutopilotRunData;
   eventLogTimeline: EventLogItem[];
+  outboundMessages: OutboundMessageItem[];
   scenarios: ScenarioOption[];
 };
 
@@ -63,12 +102,16 @@ const RUN_STATUS_LABEL: Record<string, string> = {
 
 const EVENT_TYPE_LABEL: Record<string, string> = {
   autopilot_started: "Autopilot pornit",
+  whatsapp_inbound: "Mesaj WhatsApp primit",
   autopilot_inbound: "Mesaj primit",
   autopilot_ai_planned: "AI planner",
   message_queued: "Mesaj in coada",
   message_sent: "Mesaj trimis",
   message_blocked: "Mesaj blocat: lipseste numar",
   autopilot_handover: "Handover",
+  handover_notified: "Agent notificat",
+  handover_notification_failed: "Notificare agent esuata",
+  handover_notification_blocked: "Notificare agent blocata",
 };
 
 function formatDateTime(value: string) {
@@ -95,6 +138,102 @@ function statusBadgeClass(status: string | undefined) {
   }
 }
 
+function resolveOutboundStatusLabel(
+  outbound: OutboundMessageItem,
+  eventLogTimeline: EventLogItem[]
+): string {
+  const proofEvents = eventLogTimeline.filter((e) => e.eventType === "proof_whatsapp_status");
+  const forThisMessage = proofEvents.filter((e) => {
+    const p = e.payload as Record<string, unknown> | null;
+    return p && p.providerMessageId === outbound.providerMessageId;
+  });
+  const latestProof = forThisMessage.sort(
+    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+  )[0];
+  if (latestProof) {
+    const p = latestProof.payload as Record<string, unknown> | null;
+    const status = (p?.status as string)?.toLowerCase();
+    if (status === "read") return "Citit";
+    if (status === "delivered") return "Livrat";
+  }
+  const failed = eventLogTimeline.some((e) => {
+    if (e.eventType !== "message_failed") return false;
+    const p = e.payload as Record<string, unknown> | null;
+    return p && p.outboundMessageId === outbound.id;
+  });
+  if (failed) return "Eroare";
+  switch (outbound.status) {
+    case "QUEUED":
+      return "In asteptare";
+    case "SENT":
+      return "Trimis";
+    case "FAILED":
+      return "Eroare";
+    default:
+      return outbound.status;
+  }
+}
+
+function buildChatItems(
+  eventLogTimeline: EventLogItem[],
+  outboundMessages: OutboundMessageItem[]
+): ChatItem[] {
+  const items: ChatItem[] = [];
+
+  for (const e of eventLogTimeline) {
+    if (e.eventType === "whatsapp_inbound") {
+      const p = (e.payload as Record<string, unknown>) ?? {};
+      const text = (p.text as string) ?? (p.Body as string) ?? "";
+      const from = (p.from as string) ?? "";
+      items.push({
+        kind: "inbound",
+        id: e.id,
+        listKey: `inbound-${e.id}`,
+        text: text.trim() || "(fara text)",
+        senderPhone: from || "Lead",
+        occurredAt: e.occurredAt,
+        rawJson: { eventType: e.eventType, payload: e.payload, occurredAt: e.occurredAt },
+      });
+    } else if (e.eventType === "autopilot_handover") {
+      items.push({
+        kind: "system",
+        id: e.id,
+        listKey: `system-${e.id}`,
+        text: "Transfer catre operator",
+        occurredAt: e.occurredAt,
+        rawJson: { eventType: e.eventType, payload: e.payload, occurredAt: e.occurredAt },
+      });
+    }
+  }
+
+  for (const m of outboundMessages) {
+    const statusLabel = resolveOutboundStatusLabel(m, eventLogTimeline);
+    items.push({
+      kind: "outbound",
+      id: m.id,
+      listKey: `outbound-${m.id}`,
+      text: (m.text ?? "").trim() || "(Mesaj fara continut)",
+      statusLabel,
+      createdAt: m.createdAt,
+      rawJson: {
+        outboundMessageId: m.id,
+        text: m.text,
+        status: m.status,
+        createdAt: m.createdAt,
+        providerMessageId: m.providerMessageId,
+        toPhone: m.toPhone,
+      },
+    });
+  }
+
+  items.sort((a, b) => {
+    const tA = a.kind === "outbound" ? a.createdAt : a.occurredAt;
+    const tB = b.kind === "outbound" ? b.createdAt : b.occurredAt;
+    return new Date(tA).getTime() - new Date(tB).getTime();
+  });
+  return items;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -103,6 +242,7 @@ export function AutopilotSection({
   leadId,
   autopilotRun,
   eventLogTimeline,
+  outboundMessages,
   scenarios,
 }: AutopilotSectionProps) {
   const router = useRouter();
@@ -110,6 +250,53 @@ export function AutopilotSection({
   const [result, setResult] = useState<ResultState>({ type: "idle", message: "" });
   const [isPending, startTransition] = useTransition();
   const [pendingStartSuccess, setPendingStartSuccess] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [expandedDetailIds, setExpandedDetailIds] = useState<Set<string>>(new Set());
+  const [isTimelineOpen, setIsTimelineOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(`autopilotTimelineOpen:${leadId}`) === "true";
+  });
+
+  const chatItems = useMemo(
+    () => buildChatItems(eventLogTimeline, outboundMessages),
+    [eventLogTimeline, outboundMessages]
+  );
+
+  const toggleDetail = useCallback((listKey: string) => {
+    setExpandedDetailIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(listKey)) next.delete(listKey);
+      else next.add(listKey);
+      return next;
+    });
+  }, []);
+
+  const copyPayload = useCallback((payload: unknown) => {
+    const str =
+      typeof payload === "object" && payload !== null
+        ? JSON.stringify(payload, null, 2)
+        : String(payload ?? "{}");
+    void navigator.clipboard.writeText(str);
+  }, []);
+
+  const toggleTimelineOpen = useCallback(() => {
+    setIsTimelineOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(`autopilotTimelineOpen:${leadId}`, next ? "true" : "false");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, [leadId]);
+
+  const lastChatItem = chatItems.length > 0 ? chatItems[chatItems.length - 1]! : null;
+  const lastMessageAtLabel = lastChatItem
+    ? formatDateTime(
+        lastChatItem.kind === "outbound" ? lastChatItem.createdAt : lastChatItem.occurredAt
+      )
+    : null;
 
   const hasRun = autopilotRun !== null;
 
@@ -122,6 +309,12 @@ export function AutopilotSection({
       setPendingStartSuccess(false);
     }
   }, [pendingStartSuccess, hasRun]);
+
+  // Sync timeline open state when leadId changes (e.g. client navigation)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setIsTimelineOpen(localStorage.getItem(`autopilotTimelineOpen:${leadId}`) === "true");
+  }, [leadId]);
   const runStatus = autopilotRun?.status ?? "NO_RUN";
   const stateJson = autopilotRun?.stateJson as Record<string, unknown> | null;
   const currentNode = stateJson?.node as string | undefined;
@@ -431,30 +624,126 @@ export function AutopilotSection({
       {result.type === "success" && <p className="text-sm text-emerald-600">{result.message}</p>}
       {result.type === "error" && <p className="text-sm text-rose-600">{result.message}</p>}
 
-      {/* EventLog Timeline */}
+      {/* Chat-style timeline (collapsible) */}
       <div className="space-y-2">
-        <p className="text-sm font-medium text-slate-900">Timeline autopilot</p>
-        {eventLogTimeline.length === 0 ? (
-          <p className="text-sm text-slate-600">Nu exista evenimente autopilot.</p>
-        ) : (
-          <ul className="space-y-2">
-            {eventLogTimeline.map((event) => (
-              <li key={event.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-slate-900">
-                    {EVENT_TYPE_LABEL[event.eventType] ?? event.eventType}
-                  </p>
-                  <p className="text-xs text-slate-500">{formatDateTime(event.occurredAt)}</p>
-                </div>
-                {event.payload ? (
-                  <pre className="mt-1 overflow-x-auto rounded bg-slate-50 p-2 text-xs text-slate-600">
-                    {JSON.stringify(event.payload, null, 2)}
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-slate-900">Timeline autopilot</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTimelineOpen}
+              className="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            >
+              {isTimelineOpen ? (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                  Ascunde conversatia
+                </>
+              ) : (
+                <>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                  Arata conversatia
+                </>
+              )}
+            </button>
+            {isTimelineOpen && (
+              <button
+                type="button"
+                onClick={() => setShowTechnicalDetails((v) => !v)}
+                className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+              >
+                {showTechnicalDetails ? "Ascunde detalii tehnice" : "Detalii tehnice"}
+              </button>
+            )}
+          </div>
+        </div>
+        {!isTimelineOpen && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            <p>Conversatie: {chatItems.length} mesaje</p>
+            {lastMessageAtLabel ? (
+              <p className="mt-0.5 text-xs text-slate-500">Ultimul: {lastMessageAtLabel}</p>
+            ) : null}
+          </div>
         )}
+        {isTimelineOpen && chatItems.length === 0 ? (
+          <p className="text-sm text-slate-600">Nu exista mesaje in conversatie.</p>
+        ) : isTimelineOpen ? (
+          <ul className="space-y-3">
+            {chatItems.map((item) => {
+              const isDetailExpanded = expandedDetailIds.has(item.listKey);
+              return (
+                <li key={item.listKey}>
+                  {item.kind === "inbound" && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-emerald-100 px-3 py-2 shadow-sm">
+                        <p className="text-xs text-emerald-800">{item.senderPhone}</p>
+                        <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-900">
+                          {item.text}
+                        </p>
+                        <p className="mt-1 text-[10px] text-emerald-700">
+                          {formatDateTime(item.occurredAt)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {item.kind === "outbound" && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[85%] rounded-2xl rounded-br-md bg-orange-100 px-3 py-2 shadow-sm">
+                        <p className="whitespace-pre-wrap break-words text-sm text-slate-900">
+                          {item.text}
+                        </p>
+                        <p className="mt-1 text-[10px] text-orange-700">{item.statusLabel}</p>
+                        <p className="text-[10px] text-orange-600">
+                          {formatDateTime(item.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {item.kind === "system" && (
+                    <div className="flex justify-center">
+                      <div className="rounded-full bg-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700">
+                        {item.text} · {formatDateTime(item.occurredAt)}
+                      </div>
+                    </div>
+                  )}
+                  {showTechnicalDetails && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => toggleDetail(item.listKey)}
+                        className="mt-1 flex items-center gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-left text-xs font-medium text-slate-600 hover:bg-slate-100"
+                      >
+                        {isDetailExpanded ? (
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                        )}
+                        Detalii tehnice
+                      </button>
+                      {isDetailExpanded && (
+                        <div className="mt-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                          <div className="mb-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => copyPayload(item.rawJson)}
+                              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                            >
+                              <Copy className="h-3 w-3" />
+                              Copiaza
+                            </button>
+                          </div>
+                          <pre className="overflow-x-auto rounded bg-white p-2 text-[11px] leading-relaxed text-slate-600">
+                            {JSON.stringify(item.rawJson, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
       </div>
     </div>
   );

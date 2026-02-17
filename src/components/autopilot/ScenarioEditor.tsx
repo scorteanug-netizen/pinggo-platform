@@ -22,6 +22,7 @@ import {
   Building2,
   Calendar,
   Lightbulb,
+  MessageSquare,
   RotateCcw,
   Save,
   Sparkles,
@@ -29,6 +30,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { DEFAULT_AUTOPILOT_PROMPT_RO } from "@/server/services/autopilot/defaultPrompts";
+import { ScenarioPlayground } from "./ScenarioPlayground";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -161,6 +163,7 @@ export function ScenarioEditor({ scenario, members }: ScenarioEditorProps) {
     setAiPrompt(DEFAULT_AUTOPILOT_PROMPT_RO);
   }
 
+  const [activeTab, setActiveTab] = useState<"config" | "playground">("config");
   const isAi = mode === "AI";
 
   return (
@@ -208,6 +211,38 @@ export function ScenarioEditor({ scenario, members }: ScenarioEditorProps) {
         </Button>
       </div>
 
+      {/* Tabs: Configurare | Playground */}
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-100 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab("config")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "config"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <Wrench className="h-4 w-4" />
+          Configurare
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("playground")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "playground"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          <MessageSquare className="h-4 w-4" />
+          Playground
+        </button>
+      </div>
+
+      {activeTab === "playground" ? (
+        <ScenarioPlayground scenarioId={scenario.id} />
+      ) : (
+        <>
       {/* Onboarding guidance */}
       <Card className="bg-gradient-to-r from-violet-50 to-orange-50 border-violet-200 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
         <CardContent className="p-5">
@@ -600,6 +635,8 @@ export function ScenarioEditor({ scenario, members }: ScenarioEditorProps) {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

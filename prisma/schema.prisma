@@ -109,10 +109,11 @@ model Workspace {
   slaStages     SLAStageInstance[]
   notifications Notification[]
   integrations  Integration[]
-  autopilotRuns      AutopilotRun[]
-  autopilotScenarios AutopilotScenario[]
-  outboundMessages   OutboundMessage[]
-  settings           WorkspaceSettings?
+  autopilotRuns           AutopilotRun[]
+  autopilotScenarios      AutopilotScenario[]
+  autopilotPlaygroundSessions AutopilotPlaygroundSession[]
+  outboundMessages        OutboundMessage[]
+  settings                WorkspaceSettings?
 
   @@index([disabledAt])
 }
@@ -121,6 +122,7 @@ model User {
   id             String         @id @default(cuid())
   email          String         @unique
   name           String?
+  phone          String?
   globalRole     UserGlobalRole @default(USER)
   supabaseUserId String?        @unique
   createdAt      DateTime       @default(now())
@@ -255,13 +257,31 @@ model AutopilotScenario {
 
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
-  workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  handoverUser       User?                  @relation("ScenarioHandoverUser", fields: [handoverUserId], references: [id], onDelete: SetNull)
+  workspace          Workspace                   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  handoverUser       User?                       @relation("ScenarioHandoverUser", fields: [handoverUserId], references: [id], onDelete: SetNull)
   autopilotRuns      AutopilotRun[]
+  playgroundSessions AutopilotPlaygroundSession[]
 
   @@index([workspaceId])
   @@index([workspaceId, isDefault])
   @@index([handoverUserId])
+}
+
+model AutopilotPlaygroundSession {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  scenarioId       String
+  userId           String
+  leadId           String?
+  conversationJson Json     @default("[]")
+  lastRunId        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scenario         AutopilotScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([scenarioId, userId])
+  @@index([workspaceId])
 }
 
 model AutopilotRun {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
 import { resolveRouteAlias } from "@/lib/routes";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/set-password"];
+const PUBLIC_PATHS = ["/", "/login", "/auth/callback", "/auth/set-password"];
 const PUBLIC_API_PREFIXES = ["/api/health/db", "/api/v1/leads/ingest"];
 
 function isPublicPath(pathname: string) {
