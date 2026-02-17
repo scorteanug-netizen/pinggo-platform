@@ -10,35 +10,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { LeadStatus } from "@prisma/client";
 
-const STATUS_OPTIONS: Array<{ value: LeadStatus; label: string }> = [
-  { value: "NEW", label: "Nou" },
-  { value: "OPEN", label: "Deschis" },
-  { value: "WON", label: "Castigat" },
-  { value: "LOST", label: "Pierdut" },
-  { value: "QUALIFIED", label: "Calificat" },
-  { value: "NOT_QUALIFIED", label: "Neeligibil" },
-  { value: "SPAM", label: "Spam" },
-  { value: "ARCHIVED", label: "Arhivat" },
-];
+const PHONE_E164_REGEX = /^\+\d+$/;
+const PHONE_MIN_LENGTH = 10;
 
 type LeadData = {
   firstName: string | null;
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  status: string;
 };
 
 type EditLeadDialogProps = {
@@ -46,9 +29,30 @@ type EditLeadDialogProps = {
   onOpenChange: (open: boolean) => void;
   leadId: string;
   lead: LeadData;
+  onSuccess?: (updatedLead?: LeadData) => void;
 };
 
-export function EditLeadDialog({ open, onOpenChange, leadId, lead }: EditLeadDialogProps) {
+function validateForm(values: {
+  email: string;
+  phone: string;
+}): string | null {
+  const emailTrimmed = values.email.trim();
+  if (emailTrimmed && !emailTrimmed.includes("@")) {
+    return "Email invalid (trebuie sa contina @)";
+  }
+  const phoneTrimmed = values.phone.trim();
+  if (phoneTrimmed) {
+    if (!PHONE_E164_REGEX.test(phoneTrimmed)) {
+      return "Telefon invalid: trebuie format E.164 (incepe cu +, apoi doar cifre)";
+    }
+    if (phoneTrimmed.length < PHONE_MIN_LENGTH) {
+      return "Telefon trebuie sa aiba minim 10 caractere";
+    }
+  }
+  return null;
+}
+
+export function EditLeadDialog({ open, onOpenChange, leadId, lead, onSuccess }: EditLeadDialogProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -56,7 +60,6 @@ export function EditLeadDialog({ open, onOpenChange, leadId, lead }: EditLeadDia
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState<LeadStatus>(lead.status as LeadStatus);
 
   useEffect(() => {
     if (open) {
@@ -64,28 +67,38 @@ export function EditLeadDialog({ open, onOpenChange, leadId, lead }: EditLeadDia
       setLastName(lead.lastName ?? "");
       setEmail(lead.email ?? "");
       setPhone(lead.phone ?? "");
-      setStatus((lead.status as LeadStatus) ?? "NEW");
       setMessage(null);
     }
-  }, [open, lead.firstName, lead.lastName, lead.email, lead.phone, lead.status]);
+  }, [open, lead.firstName, lead.lastName, lead.email, lead.phone]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
+
+    const validationError = validateForm({ email, phone });
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
+
+    const payload: Record<string, string | null> = {};
+    const firstNameVal = firstName.trim();
+    const lastNameVal = lastName.trim();
+    const emailVal = email.trim();
+    const phoneVal = phone.trim();
+
+    if (firstNameVal !== (lead.firstName ?? "")) payload.firstName = firstNameVal || "";
+    if (lastNameVal !== (lead.lastName ?? "")) payload.lastName = lastNameVal || "";
+    if (emailVal !== (lead.email ?? "")) payload.email = emailVal || "";
+    if (phoneVal !== (lead.phone ?? "")) payload.phone = phoneVal ? phoneVal : null;
+
+    if (Object.keys(payload).length === 0) {
+      onOpenChange(false);
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const payload: Record<string, string> = {};
-      if (firstName !== (lead.firstName ?? "")) payload.firstName = firstName.trim() || "";
-      if (lastName !== (lead.lastName ?? "")) payload.lastName = lastName.trim() || "";
-      if (email !== (lead.email ?? "")) payload.email = email.trim() || "";
-      if (phone !== (lead.phone ?? "")) payload.phone = phone.trim() || "";
-      if (status !== lead.status) payload.status = status;
-
-      if (Object.keys(payload).length === 0) {
-        onOpenChange(false);
-        return;
-      }
-
       const res = await fetch(`/api/v1/leads/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -94,13 +107,34 @@ export function EditLeadDialog({ open, onOpenChange, leadId, lead }: EditLeadDia
 
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setMessage(typeof data?.error === "string" ? data.error : "Eroare la actualizare.");
+        const errMsg =
+          typeof data?.error === "string"
+            ? data.error
+            : typeof data?.error?.message === "string"
+              ? data.error.message
+              : "Eroare la salvare";
+        setMessage(errMsg);
         return;
       }
       onOpenChange(false);
       router.refresh();
+      const updatedLead =
+        data &&
+        typeof data === "object" &&
+        "firstName" in data &&
+        "lastName" in data &&
+        "email" in data &&
+        "phone" in data
+          ? {
+              firstName: data.firstName as string | null,
+              lastName: data.lastName as string | null,
+              email: data.email as string | null,
+              phone: data.phone as string | null,
+            }
+          : undefined;
+      onSuccess?.(updatedLead);
     } catch {
-      setMessage("Eroare la actualizare.");
+      setMessage("Eroare la salvare");
     } finally {
       setSubmitting(false);
     }
@@ -157,27 +191,12 @@ export function EditLeadDialog({ open, onOpenChange, leadId, lead }: EditLeadDia
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+40721234567"
             />
+            <p className="text-xs text-slate-500">
+              Optional. Daca completat: format E.164 (+ si cifre), min 10 caractere.
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as LeadStatus)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {message && (
-            <p className="text-sm text-rose-600">{message}</p>
-          )}
+          {message && <p className="text-sm text-rose-600">{message}</p>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

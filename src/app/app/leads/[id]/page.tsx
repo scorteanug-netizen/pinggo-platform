@@ -5,7 +5,7 @@ import { getCurrentOrgId } from "@/server/authMode";
 import { DispatchButton } from "./DispatchButton";
 import { SimulateReplyBox } from "./SimulateReplyBox";
 import { SetDefaultScenarioButton } from "./SetDefaultScenarioButton";
-import { LeadHeaderActions } from "./LeadHeaderActions";
+import { LeadHeaderAndIdentity } from "./LeadHeaderAndIdentity";
 
 type LeadDetailApiResponse = {
   lead: {
@@ -86,6 +86,7 @@ function formatDateTime(value: string | null | undefined) {
 
 const EVENT_LABELS: Record<string, string> = {
   lead_received: "Lead primit",
+  lead_updated: "Lead actualizat",
   sla_started: "Cronometru SLA pornit",
   sla_breached: "SLA depasit",
   sla_stopped: "Cronometru SLA oprit",
@@ -99,6 +100,7 @@ const EVENT_LABELS: Record<string, string> = {
   autopilot_failed: "Autopilot esuat",
   booking_created: "Programare creata",
   autopilot_inbound: "Reply primit (autopilot)",
+  whatsapp_inbound: "Mesaj WhatsApp primit",
   message_blocked: "Mesaj blocat: lipseste numar",
 };
 
@@ -192,11 +194,6 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     payload: event.payload,
   }));
 
-  const displayName =
-    [leadDetail.lead.firstName, leadDetail.lead.lastName].filter(Boolean).join(" ").trim() ||
-    leadDetail.lead.email ||
-    leadDetail.lead.id.slice(0, 8);
-
   const slaStatus = leadDetail.sla
     ? leadDetail.sla.stoppedAt
       ? "Stopped"
@@ -205,63 +202,43 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         : "Running"
     : "-";
 
+  const slaCard = (
+    <Card className="rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)]">
+      <CardHeader>
+        <CardTitle className="text-xl">Cronometre SLA</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!leadDetail.sla ? (
+          <p className="text-muted-foreground text-sm">Niciun cronometru.</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            <li>Status: {slaStatus}</li>
+            <li>Pornit la: {formatDateTime(leadDetail.sla.startedAt)}</li>
+            <li>Termen limita: {formatDateTime(leadDetail.sla.deadlineAt)}</li>
+            {leadDetail.sla.stoppedAt ? (
+              <li>
+                Oprit la: {formatDateTime(leadDetail.sla.stoppedAt)}
+                {leadDetail.sla.stopReason ? ` (${leadDetail.sla.stopReason})` : ""}
+              </li>
+            ) : null}
+            {leadDetail.sla.breachedAt ? (
+              <li className="text-rose-700">
+                Depasit la: {formatDateTime(leadDetail.sla.breachedAt)}
+              </li>
+            ) : null}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Lead: {displayName}</h1>
-          <p className="text-sm text-slate-600">
-            {leadDetail.lead.email ?? "-"} · {leadDetail.lead.phone ?? "-"}
-          </p>
-        </div>
-        <LeadHeaderActions leadId={leadDetail.lead.id} lead={leadDetail.lead} />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)]">
-          <CardHeader>
-            <CardTitle className="text-xl">Identitate</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p>Nume: {displayName}</p>
-            <p>Email: {leadDetail.lead.email ?? "-"}</p>
-            <p>Telefon: {leadDetail.lead.phone ?? "-"}</p>
-            <p>Workspace: {leadDetail.lead.workspaceId}</p>
-            <p>Status: {leadDetail.lead.status}</p>
-            <p>Sursa: {leadDetail.lead.source ?? "-"}</p>
-            <p>External ID: {leadDetail.lead.externalId ?? "-"}</p>
-            <p>Creat: {formatDateTime(leadDetail.lead.createdAt)}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)]">
-          <CardHeader>
-            <CardTitle className="text-xl">Cronometre SLA</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!leadDetail.sla ? (
-              <p className="text-muted-foreground text-sm">Niciun cronometru.</p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                <li>Status: {slaStatus}</li>
-                <li>Pornit la: {formatDateTime(leadDetail.sla.startedAt)}</li>
-                <li>Termen limita: {formatDateTime(leadDetail.sla.deadlineAt)}</li>
-                {leadDetail.sla.stoppedAt ? (
-                  <li>
-                    Oprit la: {formatDateTime(leadDetail.sla.stoppedAt)}
-                    {leadDetail.sla.stopReason ? ` (${leadDetail.sla.stopReason})` : ""}
-                  </li>
-                ) : null}
-                {leadDetail.sla.breachedAt ? (
-                  <li className="text-rose-700">
-                    Depasit la: {formatDateTime(leadDetail.sla.breachedAt)}
-                  </li>
-                ) : null}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <LeadHeaderAndIdentity
+        lead={leadDetail.lead}
+        formatDateTime={formatDateTime}
+        slaCard={slaCard}
+      />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)]">

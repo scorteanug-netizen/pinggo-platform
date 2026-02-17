@@ -1,5 +1,6 @@
-import { LeadStatus } from "@prisma/client";
+import { OutboundChannel, OutboundMessageStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 
@@ -7,12 +8,35 @@ type RouteContext = {
   params: { leadId: string };
 };
 
+const optionalStringOrNull = () =>
+  z
+    .union([z.string().trim(), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" ? null : v));
+
 const patchSchema = z.object({
-  firstName: z.string().trim().optional(),
-  lastName: z.string().trim().optional(),
-  email: z.string().trim().optional(),
-  phone: z.string().trim().optional(),
-  status: z.nativeEnum(LeadStatus).optional(),
+  firstName: optionalStringOrNull(),
+  lastName: optionalStringOrNull(),
+  email: z
+    .union([z.string().trim(), z.literal(""), z.null()])
+    .optional()
+    .refine(
+      (v) => v === undefined || v === "" || v === null || v.includes("@"),
+      { message: "Email invalid (trebuie sa contina @)" }
+    )
+    .transform((v) => (v === "" ? null : v)),
+  phone: z
+    .union([z.string().trim(), z.literal(""), z.null()])
+    .optional()
+    .refine(
+      (v) =>
+        v === undefined ||
+        v === "" ||
+        v === null ||
+        (/^\+\d+$/.test(v) && v.length >= 10),
+      { message: "Telefon: format E.164 (+ si cifre), min 10 caractere" }
+    )
+    .transform((v) => (v === "" ? null : v)),
 });
 
 function toIsoString(value: Date | null) {
@@ -200,40 +224,78 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     }
 
     const updates = parsed.data;
-    if (Object.keys(updates).length === 0) {
+    const data: Record<string, string | null> = {};
+    if (updates.firstName !== undefined) data.firstName = updates.firstName ?? null;
+    if (updates.lastName !== undefined) data.lastName = updates.lastName ?? null;
+    if (updates.email !== undefined) data.email = updates.email ?? null;
+    if (updates.phone !== undefined) data.phone = updates.phone ?? null;
+
+    if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    const lead = await prisma.lead.findUnique({
+    const existing = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { id: true },
+      select: { id: true, phone: true, email: true },
     });
-    if (!lead) {
+    if (!existing) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    const data: Record<string, unknown> = {};
-    if (updates.firstName !== undefined) data.firstName = updates.firstName || null;
-    if (updates.lastName !== undefined) data.lastName = updates.lastName || null;
-    if (updates.email !== undefined) data.email = updates.email || null;
-    if (updates.phone !== undefined) data.phone = updates.phone || null;
-    if (updates.status !== undefined) data.status = updates.status;
-
-    await prisma.$transaction(async (tx) => {
-      await tx.lead.update({
+    const lead = await prisma.$transaction(async (tx) => {
+      const updated = await tx.lead.update({
         where: { id: leadId },
-        data: data as Record<string, never>,
+        data,
+        select: { id: true, firstName: true, lastName: true, email: true, phone: true },
       });
-      await tx.eventLog.create({
-        data: {
-          leadId,
-          eventType: "lead_updated",
-          payload: { changedFields: updates } as Record<string, unknown>,
-        },
-      });
+
+      const identityUpdates: { phone?: string | null; email?: string | null } = {};
+      if (data.phone !== undefined) {
+        const newPhone = (data.phone ?? "").trim() || null;
+        const oldPhone = existing.phone ?? null;
+        identityUpdates.phone = newPhone;
+
+        await tx.outboundMessage.updateMany({
+          where: {
+            leadId,
+            status: OutboundMessageStatus.QUEUED,
+            channel: OutboundChannel.WHATSAPP,
+          },
+          data: { toPhone: newPhone },
+        });
+
+        if (oldPhone !== newPhone) {
+          await tx.eventLog.create({
+            data: {
+              leadId,
+              eventType: "lead_updated",
+              payload: {
+                changed: ["phone"],
+                oldPhone,
+                newPhone,
+              } as Record<string, unknown>,
+            },
+          });
+        }
+      }
+      if (data.email !== undefined) {
+        const newEmail = (data.email ?? "").trim() || null;
+        identityUpdates.email = newEmail;
+      }
+      if (Object.keys(identityUpdates).length > 0) {
+        await tx.leadIdentity.updateMany({
+          where: { leadId },
+          data: identityUpdates,
+        });
+      }
+
+      return updated;
     });
 
-    return NextResponse.json({ ok: true });
+    revalidatePath(`/app/leads/${leadId}`);
+    revalidatePath(`/leads/${leadId}`);
+
+    return NextResponse.json(lead, { status: 200 });
   } catch (error) {
     console.error("[leads PATCH]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

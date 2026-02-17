@@ -333,7 +333,7 @@ export async function processAutopilotReply(
         calendarLinkRaw: scenario.calendarLinkRaw,
       },
       leadContext: {
-        phone: lead?.identity?.phone ?? lead?.phone,
+        phone: lead?.phone ?? lead?.identity?.phone,
         email: lead?.email,
         source: lead?.source,
         externalId: lead?.externalId,
@@ -419,10 +419,9 @@ export async function processAutopilotReply(
     },
   });
 
-  const rawPhone = lead?.identity?.phone ?? lead?.phone ?? null;
-  const toPhone = (rawPhone ?? "").trim();
+  const toPhone = (lead?.phone ?? lead?.identity?.phone ?? "").trim();
   if (!toPhone) {
-    const observedTrimmed = ((lead?.phone ?? "") as string).trim() || null;
+    const observedPhone = (lead?.phone ?? lead?.identity?.phone ?? "").trim() || null;
     await tx.eventLog.create({
       data: {
         leadId,
@@ -432,8 +431,8 @@ export async function processAutopilotReply(
           channel: "whatsapp",
           scenarioId,
           nodeAfter: transition.nextNode,
-          observedPhone: lead?.phone ?? null,
-          observedTrimmedPhone: observedTrimmed,
+          observedPhone,
+          observedTrimmedPhone: observedPhone,
         } as unknown as Prisma.InputJsonValue,
         occurredAt: now,
       },

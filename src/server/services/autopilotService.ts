@@ -259,7 +259,7 @@ export async function startAutopilot(params: {
         where: { leadId: lead.id },
         select: { phone: true },
       });
-      const toPhone = identity?.phone ?? lead.phone ?? null;
+      const toPhone = (lead.phone ?? identity?.phone ?? "").trim() || null;
 
       run = await trx.autopilotRun.create({
         data: {
@@ -310,7 +310,7 @@ export async function startAutopilot(params: {
           ],
         });
       } else {
-        const observedTrimmed = ((lead.phone ?? "") as string).trim() || null;
+        const observedPhone = (lead.phone ?? identity?.phone ?? "").trim() || null;
         await trx.eventLog.createMany({
           data: [
             {
@@ -330,8 +330,8 @@ export async function startAutopilot(params: {
                 channel: "whatsapp",
                 scenarioId: scenario.id,
                 nodeAfter: "welcome",
-                observedPhone: lead.phone ?? null,
-                observedTrimmedPhone: observedTrimmed,
+                observedPhone: observedPhone ?? null,
+                observedTrimmedPhone: observedPhone,
               } as Prisma.InputJsonValue,
             },
           ],

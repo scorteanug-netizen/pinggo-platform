@@ -5,5 +5,6 @@ export async function sendWhatsApp(_input: SendWhatsAppInput): Promise<SendWhats
   return {
     provider: "stub",
     providerMessageId: `stub_${randomUUID()}`,
+    sentAt: new Date(),
   };
 }

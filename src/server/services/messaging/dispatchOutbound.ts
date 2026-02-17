@@ -5,7 +5,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/server/db";
-import { stubProvider } from "./providers/stubProvider";
+import { sendWhatsApp } from "./sendWhatsApp";
 
 type DispatchSummary = {
   processed: number;
@@ -38,8 +38,8 @@ export async function dispatchQueuedOutbound(
   let failed = 0;
 
   for (const msg of queued) {
-    if (!msg.toPhone) {
-      // No phone → mark FAILED
+    const toPhone = (msg.toPhone ?? "").trim();
+    if (!toPhone) {
       await prisma.$transaction(async (tx) => {
         await tx.outboundMessage.update({
           where: { id: msg.id },
@@ -50,8 +50,8 @@ export async function dispatchQueuedOutbound(
             leadId: msg.leadId,
             eventType: "message_failed",
             payload: {
-              outboundMessageId: msg.id,
               reason: "missing_toPhone",
+              outboundMessageId: msg.id,
             } as unknown as Prisma.InputJsonValue,
             occurredAt: now,
           },
@@ -62,10 +62,14 @@ export async function dispatchQueuedOutbound(
     }
 
     try {
-      const result = await stubProvider.sendWhatsApp({
-        toPhone: msg.toPhone,
+      const result = await sendWhatsApp({
+        workspaceId: msg.workspaceId,
+        leadId: msg.leadId,
+        toPhone,
         text: msg.text,
+        outboundMessageId: msg.id,
       });
+      const sentAt = result.sentAt ?? now;
 
       await prisma.$transaction(async (tx) => {
         await tx.outboundMessage.update({
@@ -74,7 +78,7 @@ export async function dispatchQueuedOutbound(
             status: OutboundMessageStatus.SENT,
             provider: result.provider,
             providerMessageId: result.providerMessageId,
-            sentAt: result.sentAt,
+            sentAt,
           },
         });
 
@@ -85,7 +89,7 @@ export async function dispatchQueuedOutbound(
             type: ProofType.SENT,
             provider: result.provider,
             providerMessageId: result.providerMessageId,
-            occurredAt: result.sentAt,
+            occurredAt: sentAt,
           },
         });
 
@@ -97,14 +101,19 @@ export async function dispatchQueuedOutbound(
               outboundMessageId: msg.id,
               provider: result.provider,
               providerMessageId: result.providerMessageId,
-              toPhone: msg.toPhone,
+              toPhone,
             } as unknown as Prisma.InputJsonValue,
-            occurredAt: result.sentAt,
+            occurredAt: sentAt,
           },
         });
       });
       sent++;
-    } catch {
+    } catch (error) {
+      const rawMsg = error instanceof Error ? error.message : "";
+      const errorMessage =
+        /TWILIO|sid|[A-Z]{2}[a-z0-9]{32}/.test(rawMsg)
+          ? "provider_error"
+          : rawMsg.slice(0, 200).replace(/\s+/g, " ").trim() || "provider_error";
       await prisma.$transaction(async (tx) => {
         await tx.outboundMessage.update({
           where: { id: msg.id },
@@ -117,6 +126,7 @@ export async function dispatchQueuedOutbound(
             payload: {
               outboundMessageId: msg.id,
               reason: "provider_error",
+              errorMessage,
             } as unknown as Prisma.InputJsonValue,
             occurredAt: now,
           },

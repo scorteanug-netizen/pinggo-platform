@@ -11,6 +11,7 @@ import { getLeadDetailScoped } from "@/server/services/leadService";
 import { detectBreaches } from "@/server/services/slaService";
 import { AutopilotSection } from "./AutopilotSection";
 import { LeadActions } from "./LeadActions";
+import { EditLeadButton } from "@/app/app/leads/[id]/EditLeadButton";
 
 const STATUS_LABEL: Record<LeadStatus, string> = {
   NEW: "Nou",
@@ -669,7 +670,13 @@ export default async function LeadDetailPage({
   const currentOwnerLabel = lead.ownerUser?.name || lead.ownerUser?.email || "-";
 
   const displayName =
-    lead.identity?.name || lead.identity?.email || lead.identity?.phone || lead.id;
+    [lead.firstName, lead.lastName].filter(Boolean).join(" ").trim() ||
+    lead.identity?.name ||
+    lead.email ||
+    lead.identity?.email ||
+    lead.phone ||
+    lead.identity?.phone ||
+    lead.id;
 
   // Autopilot + SLA: query real AutopilotRun, EventLog, SLAState, scenarios
   const [autopilotRunRow, autopilotEventLogs, slaState, scenarios] = await Promise.all([
@@ -792,9 +799,22 @@ export default async function LeadDetailPage({
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Detalii lead</h1>
           <p className="text-sm text-slate-600">Vizualizare SLA, timeline si actiuni rapide.</p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/leads">Inapoi la leaduri</Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <EditLeadButton
+            leadId={lead.id}
+            lead={{
+              firstName: lead.firstName ?? lead.identity?.name?.split(" ")[0] ?? null,
+              lastName: lead.lastName ?? lead.identity?.name?.split(" ").slice(1).join(" ") || null,
+              email: lead.email ?? lead.identity?.email ?? null,
+              phone: lead.phone ?? lead.identity?.phone ?? null,
+            }}
+            variant="outline"
+            size="default"
+          />
+          <Button variant="outline" asChild>
+            <Link href="/leads">Inapoi la leaduri</Link>
+          </Button>
+        </div>
       </div>
 
       <Card className="rounded-2xl border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_28px_rgba(15,23,42,0.06)]">
@@ -805,8 +825,8 @@ export default async function LeadDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
-          <p>Email: {lead.identity?.email || "-"}</p>
-          <p>Telefon: {lead.identity?.phone || "-"}</p>
+          <p>Email: {lead.email ?? lead.identity?.email || "-"}</p>
+          <p>Telefon: {lead.phone ?? lead.identity?.phone || "-"}</p>
           <p>Companie: {lead.identity?.company || "-"}</p>
           <p>Owner: {lead.ownerUser?.name || lead.ownerUser?.email || "-"}</p>
           <p>Status: {STATUS_LABEL[lead.status]}</p>
