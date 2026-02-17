@@ -5,6 +5,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // Zod schemas
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ items: scenarios.map(serialize) });
   } catch (error) {
-    console.error("[autopilot/scenarios GET]", error);
+    logger.error("[autopilot/scenarios GET]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(serialize(scenario), { status: 201 });
   } catch (error) {
-    console.error("[autopilot/scenarios POST]", error);
+    logger.error("[autopilot/scenarios POST]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

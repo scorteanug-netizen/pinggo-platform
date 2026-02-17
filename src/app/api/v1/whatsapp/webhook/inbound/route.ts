@@ -5,6 +5,7 @@ import { prisma } from "@/server/db";
 import { processAutopilotReply } from "@/server/services/autopilot/processReply";
 import { ProofChannel, ProofType } from "@prisma/client";
 import { getDefaultScenario } from "@/server/services/autopilot/getDefaultScenario";
+import { logger } from "@/lib/logger";
 
 const inboundSchema = z.object({
   workspaceId: z.string().trim().min(1),
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
       { status }
     );
   } catch (error) {
-    console.error("[whatsapp/inbound]", error);
+    logger.error("[whatsapp/inbound]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

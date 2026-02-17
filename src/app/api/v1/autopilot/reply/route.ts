@@ -3,6 +3,7 @@ import { z } from "zod";
 import { processAutopilotReply } from "@/server/services/autopilot/processReply";
 import { dispatchOneOutboundMessage } from "@/server/services/messaging/dispatchOneOutbound";
 import { notifyAgentHandover } from "@/server/services/notifications/notifyAgentHandover";
+import { logger } from "@/lib/logger";
 
 const replySchema = z.object({
   leadId: z.string().trim().min(1),
@@ -42,13 +43,13 @@ export async function POST(request: NextRequest) {
           summary: result.lastInboundText ?? undefined,
         });
       } catch (e) {
-        console.error("[autopilot/reply] notifyAgentHandover", e);
+        logger.error("[autopilot/reply] notifyAgentHandover", e);
       }
     }
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[autopilot/reply]", error);
+    logger.error("[autopilot/reply]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

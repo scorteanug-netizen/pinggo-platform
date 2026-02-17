@@ -6,6 +6,7 @@ import {
 } from "@/server/authMode";
 import { detectBreaches } from "@/server/services/slaService";
 import { detectEscalations } from "@/server/services/escalationService";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
     if (isWorkspaceAccessError(e)) {
       return NextResponse.json({ error: e.message }, { status: e.status });
     }
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

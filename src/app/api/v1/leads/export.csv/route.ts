@@ -7,6 +7,7 @@ import {
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { buildLeadOrderBy, buildLeadWhereInput } from "@/server/services/leadService";
+import { logger } from "@/lib/logger";
 
 const FIRST_TOUCH_PROOF_TYPES = [
   "message_sent",
@@ -245,7 +246,7 @@ export async function GET(request: NextRequest) {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

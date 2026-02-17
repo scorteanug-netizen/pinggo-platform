@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { stopSlaClock } from "@/server/services/slaEngine";
+import { logger } from "@/lib/logger";
 
 const schema = z.object({
   leadId: z.string().trim().min(1),
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
       { status: proofEventResult.reused ? 200 : 201 },
     );
   } catch (error) {
-    console.error("[proof/whatsapp/status]", error);
+    logger.error("[proof/whatsapp/status]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

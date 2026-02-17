@@ -5,6 +5,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,6 +38,7 @@ const patchSchema = z.object({
   language: z.string().trim().min(1).optional(),
   tone: z.string().trim().min(1).nullable().optional(),
   knowledgeBaseJson: z.record(z.unknown()).nullable().optional(),
+  handoverKeywordsJson: z.array(z.string()).nullable().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -63,6 +65,7 @@ function serialize(scenario: {
   language: string;
   tone: string | null;
   knowledgeBaseJson: unknown;
+  handoverKeywordsJson: unknown;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -86,6 +89,7 @@ function serialize(scenario: {
     language: scenario.language,
     tone: scenario.tone,
     knowledgeBaseJson: scenario.knowledgeBaseJson,
+    handoverKeywordsJson: scenario.handoverKeywordsJson,
     createdAt: scenario.createdAt.toISOString(),
     updatedAt: scenario.updatedAt.toISOString(),
   };
@@ -153,6 +157,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           ...(updates.language !== undefined && { language: updates.language }),
           ...(updates.tone !== undefined && { tone: updates.tone }),
           ...(updates.knowledgeBaseJson !== undefined && { knowledgeBaseJson: updates.knowledgeBaseJson ?? undefined }),
+          ...(updates.handoverKeywordsJson !== undefined && { handoverKeywordsJson: updates.handoverKeywordsJson ?? undefined }),
         },
       });
     });
@@ -163,7 +168,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json(serialize(scenario));
   } catch (error) {
-    console.error("[autopilot/scenarios PATCH]", error);
+    logger.error("[autopilot/scenarios PATCH]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -239,7 +244,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     if (known.code === "SCENARIO_IN_USE") {
       return NextResponse.json({ error: "SCENARIO_IN_USE" }, { status: 409 });
     }
-    console.error("[autopilot/scenarios DELETE]", err);
+    logger.error("[autopilot/scenarios DELETE]", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

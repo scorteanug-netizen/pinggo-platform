@@ -254,6 +254,7 @@ model AutopilotScenario {
   language           String                 @default("ro")
   tone               String?
   knowledgeBaseJson  Json?
+  handoverKeywordsJson Json?               // optional array of strings; falls back to platform defaults if null
 
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt

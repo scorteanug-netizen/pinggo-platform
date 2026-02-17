@@ -7,6 +7,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import {
+import { logger } from "@/lib/logger";
   mergeFlowRoutingConfig,
   parseFlowRoutingConfig,
 } from "@/server/services/routingService";
@@ -85,7 +86,7 @@ export async function GET(
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -157,7 +158,7 @@ export async function PUT(
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

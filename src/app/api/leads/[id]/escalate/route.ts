@@ -4,6 +4,7 @@ import { escalateSchema } from "@/lib/validations/leads";
 import { addEscalationEvent } from "@/server/services/leadService";
 import { prisma } from "@/server/db";
 import {
+import { logger } from "@/lib/logger";
   requirePermission,
   isWorkspaceAccessError,
 } from "@/server/authMode";
@@ -39,7 +40,7 @@ export async function POST(
     if (e instanceof Error && e.message === "LEAD_NOT_FOUND") {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import { getDefaultScenario } from "@/server/services/autopilot/getDefaultScenario";
+import { logger } from "@/lib/logger";
 
 const listLeadsQuerySchema = z.object({
   workspaceId: z.string().trim().min(1),
@@ -467,7 +468,7 @@ export async function GET(request: NextRequest) {
       total,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -568,7 +569,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
 
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

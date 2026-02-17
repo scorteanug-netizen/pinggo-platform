@@ -4,6 +4,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 const INBOUND_TYPES = ["whatsapp_inbound", "autopilot_inbound"] as const;
 const OUTBOUND_TYPES = ["message_queued", "message_sent"] as const;
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       );
     }
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[playground/messages]", message);
+    logger.error("[playground/messages]", message);
     return json500(message.slice(0, 200));
   }
 }

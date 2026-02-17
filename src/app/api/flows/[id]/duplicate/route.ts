@@ -4,6 +4,7 @@ import {
   requirePermission,
 } from "@/server/authMode";
 import { duplicateFlowAsDraft } from "@/server/services/flowWizardService";
+import { logger } from "@/lib/logger";
 
 export async function POST(
   _request: Request,
@@ -32,7 +33,7 @@ export async function POST(
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

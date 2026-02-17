@@ -7,6 +7,7 @@ import {
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { startAutopilot } from "@/server/services/autopilotService";
+import { logger } from "@/lib/logger";
 
 const startAutopilotSchema = z.object({
   leadId: z.string().trim().min(1),
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "LEAD_NOT_FOUND") {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

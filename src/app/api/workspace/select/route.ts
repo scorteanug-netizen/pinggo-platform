@@ -6,6 +6,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 const selectWorkspaceSchema = z.object({
   workspaceId: z.string().trim().min(1),
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

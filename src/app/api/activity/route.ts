@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isWorkspaceAccessError, requirePermission } from "@/server/authMode";
 import { getActivityFeed } from "@/server/services/activityFeedService";
+import { logger } from "@/lib/logger";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

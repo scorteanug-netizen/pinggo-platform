@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserEmail, isCurrentUserSuperAdmin } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 const createCompanySchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, workspace }, { status: 201 });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

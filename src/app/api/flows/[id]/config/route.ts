@@ -10,6 +10,7 @@ import {
   syncFlowRuntimeFromWizardState,
 } from "@/server/services/flowWizardService";
 import { normalizeFlowWizardState } from "@/lib/flows/wizard";
+import { logger } from "@/lib/logger";
 
 export async function PUT(
   request: NextRequest,
@@ -69,7 +70,7 @@ export async function PUT(
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

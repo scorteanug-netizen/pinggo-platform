@@ -8,6 +8,7 @@ import {
 } from "@/server/authMode";
 import { detectBreaches } from "@/server/services/slaService";
 import { detectEscalations } from "@/server/services/escalationService";
+import { logger } from "@/lib/logger";
 
 function parseDateFilter(value: string | undefined, mode: "from" | "to") {
   if (!value) return undefined;
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
     if (isWorkspaceAccessError(e)) {
       return NextResponse.json({ error: e.message }, { status: e.status });
     }
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

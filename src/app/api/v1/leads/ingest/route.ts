@@ -8,6 +8,7 @@ import {
 } from "@/server/services/integrationService";
 import { assignLeadFromFlowRouting } from "@/server/services/routingService";
 import { startStage } from "@/server/services/slaService";
+import { logger } from "@/lib/logger";
 
 const ingestPayloadSchema = z.object({
   source: z.enum(["WEBHOOK", "FORM", "CRM", "EMAIL", "WHATSAPP", "API"]),
@@ -570,7 +571,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

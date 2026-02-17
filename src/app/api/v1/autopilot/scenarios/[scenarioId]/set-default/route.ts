@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 type RouteContext = {
   params: { scenarioId: string };
@@ -83,7 +84,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[autopilot/scenarios/set-default POST]", error);
+    logger.error("[autopilot/scenarios/set-default POST]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -9,19 +9,20 @@ import {
 import { prisma } from "../db";
 import { getOrderedStageDefinitions, startStage } from "./slaService";
 import { getDefaultScenario } from "./autopilot/getDefaultScenario";
+import { LeadEventType } from "@/lib/eventTypes";
 
 type TxOrClient = Prisma.TransactionClient | typeof prisma;
 
 const AUTOPILOT_TIMELINE_TYPES = [
-  "autopilot_started",
-  "autopilot_ack",
-  "autopilot_message_received",
-  "autopilot_question_asked",
-  "autopilot_booking_offered",
-  "handover_requested",
+  LeadEventType.AUTOPILOT_STARTED,
+  LeadEventType.AUTOPILOT_ACK,
+  LeadEventType.AUTOPILOT_MESSAGE_RECEIVED,
+  LeadEventType.AUTOPILOT_QUESTION_ASKED,
+  LeadEventType.AUTOPILOT_BOOKING_OFFERED,
+  LeadEventType.HANDOVER_REQUESTED,
 ] as const;
 
-const HANDOVER_KEYWORDS = ["om", "operator", "nu inteleg", "reclamatie"] as const;
+const DEFAULT_HANDOVER_KEYWORDS: readonly string[] = ["om", "operator", "nu inteleg", "reclamatie"];
 
 const AUTOPILOT_QUESTIONS = [
   "Care este obiectivul principal pentru acest lead?",
@@ -68,9 +69,9 @@ function containsKeyword(message: string, keyword: string) {
   return message.includes(keyword);
 }
 
-function extractMatchedKeywords(message: string) {
+function extractMatchedKeywords(message: string, keywords: readonly string[] = DEFAULT_HANDOVER_KEYWORDS) {
   const normalized = toLower(message);
-  return HANDOVER_KEYWORDS.filter((keyword) => containsKeyword(normalized, keyword));
+  return keywords.filter((keyword) => containsKeyword(normalized, keyword));
 }
 
 function getRandomAckDelaySeconds() {
@@ -80,7 +81,7 @@ function getRandomAckDelaySeconds() {
 function isAutopilotTimelineEvent(type: string) {
   return (
     AUTOPILOT_TIMELINE_TYPES.includes(type as (typeof AUTOPILOT_TIMELINE_TYPES)[number]) ||
-    type === "handover_requested"
+    type === LeadEventType.HANDOVER_REQUESTED
   );
 }
 
@@ -192,11 +193,11 @@ export async function listAutopilotTimeline(
 }
 
 export function deriveAutopilotSnapshot(events: Array<Pick<LeadEvent, "type">>): AutopilotSnapshot {
-  const started = events.some((event) => event.type === "autopilot_started");
-  const ackSent = events.some((event) => event.type === "autopilot_ack");
-  const questionsAsked = events.filter((event) => event.type === "autopilot_question_asked").length;
-  const bookingOffered = events.some((event) => event.type === "autopilot_booking_offered");
-  const handoverRequested = events.some((event) => event.type === "handover_requested");
+  const started = events.some((event) => event.type === LeadEventType.AUTOPILOT_STARTED);
+  const ackSent = events.some((event) => event.type === LeadEventType.AUTOPILOT_ACK);
+  const questionsAsked = events.filter((event) => event.type === LeadEventType.AUTOPILOT_QUESTION_ASKED).length;
+  const bookingOffered = events.some((event) => event.type === LeadEventType.AUTOPILOT_BOOKING_OFFERED);
+  const handoverRequested = events.some((event) => event.type === LeadEventType.HANDOVER_REQUESTED);
 
   let state: AutopilotState = "IDLE";
   if (handoverRequested) {
@@ -291,7 +292,7 @@ export async function startAutopilot(params: {
           data: [
             {
               leadId: lead.id,
-              eventType: "autopilot_started",
+              eventType: LeadEventType.AUTOPILOT_STARTED,
               payload: {
                 runId: run.id,
                 scenarioId: scenario.id,
@@ -300,7 +301,7 @@ export async function startAutopilot(params: {
             },
             {
               leadId: lead.id,
-              eventType: "message_queued",
+              eventType: LeadEventType.MESSAGE_QUEUED,
               payload: {
                 channel: "whatsapp",
                 messageId: outbound.id,
@@ -315,7 +316,7 @@ export async function startAutopilot(params: {
           data: [
             {
               leadId: lead.id,
-              eventType: "autopilot_started",
+              eventType: LeadEventType.AUTOPILOT_STARTED,
               payload: {
                 runId: run.id,
                 scenarioId: scenario.id,
@@ -324,7 +325,7 @@ export async function startAutopilot(params: {
             },
             {
               leadId: lead.id,
-              eventType: "message_blocked",
+              eventType: LeadEventType.MESSAGE_BLOCKED,
               payload: {
                 reason: "missing_phone",
                 channel: "whatsapp",
@@ -367,11 +368,27 @@ export async function processAutopilotEvent(params: {
       throw new Error("LEAD_NOT_FOUND");
     }
 
+    // Resolve handover keywords from the scenario config (falls back to platform defaults if not set)
+    const autopilotRun = await trx.autopilotRun.findUnique({
+      where: { leadId: params.leadId },
+      select: { scenarioId: true },
+    });
+    let handoverKeywords: readonly string[] = DEFAULT_HANDOVER_KEYWORDS;
+    if (autopilotRun?.scenarioId) {
+      const scenarioKw = await trx.autopilotScenario.findUnique({
+        where: { id: autopilotRun.scenarioId },
+        select: { handoverKeywordsJson: true },
+      });
+      if (Array.isArray(scenarioKw?.handoverKeywordsJson) && scenarioKw.handoverKeywordsJson.length > 0) {
+        handoverKeywords = scenarioKw.handoverKeywordsJson as string[];
+      }
+    }
+
     await trx.leadEvent.create({
       data: {
         leadId: lead.id,
         workspaceId: params.workspaceId,
-        type: "autopilot_message_received",
+        type: LeadEventType.AUTOPILOT_MESSAGE_RECEIVED,
         payload: {
           message: trimmedMessage,
         } as Prisma.InputJsonValue,
@@ -379,8 +396,8 @@ export async function processAutopilotEvent(params: {
     });
 
     let autopilotEvents = await listAutopilotEvents(trx, params.workspaceId, lead.id);
-    const hasStarted = autopilotEvents.some((event) => event.type === "autopilot_started");
-    const hasAck = autopilotEvents.some((event) => event.type === "autopilot_ack");
+    const hasStarted = autopilotEvents.some((event) => event.type === LeadEventType.AUTOPILOT_STARTED);
+    const hasAck = autopilotEvents.some((event) => event.type === LeadEventType.AUTOPILOT_ACK);
 
     if (!hasStarted) {
       const scenario = await getDefaultScenario(trx, params.workspaceId);
@@ -388,7 +405,7 @@ export async function processAutopilotEvent(params: {
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
-          type: "autopilot_started",
+          type: LeadEventType.AUTOPILOT_STARTED,
           payload: {
             mode: scenario.mode,
             scenarioId: scenario.id,
@@ -402,7 +419,7 @@ export async function processAutopilotEvent(params: {
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
-          type: "autopilot_ack",
+          type: LeadEventType.AUTOPILOT_ACK,
           payload: {
             ackDelaySeconds: getRandomAckDelaySeconds(),
             text: "Am primit mesajul. Revin imediat cu cateva intrebari.",
@@ -415,9 +432,9 @@ export async function processAutopilotEvent(params: {
       autopilotEvents = await listAutopilotEvents(trx, params.workspaceId, lead.id);
     }
 
-    const matchedKeywords = extractMatchedKeywords(trimmedMessage);
+    const matchedKeywords = extractMatchedKeywords(trimmedMessage, handoverKeywords);
     const handoverAlreadyRequested = autopilotEvents.some(
-      (event) => event.type === "handover_requested"
+      (event) => event.type === LeadEventType.HANDOVER_REQUESTED
     );
 
     if (matchedKeywords.length > 0 && !handoverAlreadyRequested) {
@@ -431,7 +448,7 @@ export async function processAutopilotEvent(params: {
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
-          type: "handover_requested",
+          type: LeadEventType.HANDOVER_REQUESTED,
           payload: {
             reason: "keyword_detected",
             keywords: matchedKeywords,
@@ -458,10 +475,10 @@ export async function processAutopilotEvent(params: {
     }
 
     const questionEvents = autopilotEvents.filter(
-      (event) => event.type === "autopilot_question_asked"
+      (event) => event.type === LeadEventType.AUTOPILOT_QUESTION_ASKED
     );
     const bookingOffered = autopilotEvents.some(
-      (event) => event.type === "autopilot_booking_offered"
+      (event) => event.type === LeadEventType.AUTOPILOT_BOOKING_OFFERED
     );
 
     if (questionEvents.length < 2) {
@@ -470,7 +487,7 @@ export async function processAutopilotEvent(params: {
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
-          type: "autopilot_question_asked",
+          type: LeadEventType.AUTOPILOT_QUESTION_ASKED,
           payload: {
             index: nextIndex,
             text: AUTOPILOT_QUESTIONS[nextIndex - 1] ?? AUTOPILOT_QUESTIONS[1],
@@ -485,7 +502,7 @@ export async function processAutopilotEvent(params: {
         data: {
           leadId: lead.id,
           workspaceId: params.workspaceId,
-          type: "autopilot_booking_offered",
+          type: LeadEventType.AUTOPILOT_BOOKING_OFFERED,
           payload: {
             bookingLink: `${AUTOPILOT_BOOKING_LINK_BASE}?leadId=${lead.id}`,
             text: "Iata linkul de programare pentru urmatorul pas.",

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserEmail, isCurrentUserSuperAdmin } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 const updateCompanyStatusSchema = z.object({
   action: z.enum(["disable", "enable"]),
@@ -99,7 +100,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return updateCompanyStatus(workspaceId, parsed.data.action);
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -116,7 +117,7 @@ export async function DELETE(
 
     return updateCompanyStatus(workspaceId, "disable");
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

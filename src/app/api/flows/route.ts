@@ -6,6 +6,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -42,7 +43,7 @@ export async function GET() {
     if (isWorkspaceAccessError(e)) {
       return NextResponse.json({ error: e.message }, { status: e.status });
     }
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (isWorkspaceAccessError(e)) {
       return NextResponse.json({ error: e.message }, { status: e.status });
     }
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

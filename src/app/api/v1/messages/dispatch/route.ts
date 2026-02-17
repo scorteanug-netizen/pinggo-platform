@@ -8,6 +8,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { sendWhatsApp } from "@/server/services/messaging/sendWhatsApp";
+import { logger } from "@/lib/logger";
 
 function sanitizeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -135,7 +136,7 @@ export async function POST(_request: NextRequest) {
           failed += 1;
         }
       } catch (error) {
-        console.error("[messages/dispatch]", error);
+        logger.error("[messages/dispatch]", error);
         const reason = sanitizeErrorMessage(error);
         await prisma.$transaction(async (tx) => {
           await tx.outboundMessage.updateMany({
@@ -165,7 +166,7 @@ export async function POST(_request: NextRequest) {
 
     return NextResponse.json({ processed, sent, failed });
   } catch (error) {
-    console.error("[messages/dispatch]", error);
+    logger.error("[messages/dispatch]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

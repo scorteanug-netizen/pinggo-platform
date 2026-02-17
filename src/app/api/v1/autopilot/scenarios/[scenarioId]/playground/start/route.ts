@@ -6,6 +6,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 const startSchema = z.object({
   leadSeed: z
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[playground/start]", message);
+    logger.error("[playground/start]", message);
     const sanitized = message.replace(/[\s\n\r]+/g, " ").slice(0, 200);
     return json500(`Prisma error: ${sanitized}`);
   }

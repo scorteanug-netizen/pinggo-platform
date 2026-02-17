@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserAndWorkspace, isWorkspaceAccessError } from "@/server/authMode";
 import { rotateWorkspaceWebhookToken } from "@/server/services/integrationService";
+import { logger } from "@/lib/logger";
 
 export async function POST() {
   try {
@@ -15,7 +16,7 @@ export async function POST() {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

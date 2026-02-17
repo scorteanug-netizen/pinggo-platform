@@ -5,6 +5,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { getWorkspaceSettings, updateWorkspaceSettings } from "@/server/services/settingsService";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -20,7 +21,7 @@ export async function GET() {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -48,7 +49,7 @@ export async function PUT(request: NextRequest) {
     if (error instanceof Error && error.message === "INVALID_DEFAULT_FLOW") {
       return NextResponse.json({ error: "Flux implicit invalid pentru acest workspace." }, { status: 400 });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

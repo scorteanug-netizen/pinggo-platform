@@ -6,6 +6,7 @@ import {
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { processAutopilotReply } from "@/server/services/autopilot/processReply";
+import { logger } from "@/lib/logger";
 
 const messageSchema = z.object({
   leadId: z.string().trim().min(1),
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[playground/message]", message);
+    logger.error("[playground/message]", message);
     const sanitized = message.replace(/[\s\n\r]+/g, " ").slice(0, 200);
     return json500(`Prisma error: ${sanitized}`);
   }

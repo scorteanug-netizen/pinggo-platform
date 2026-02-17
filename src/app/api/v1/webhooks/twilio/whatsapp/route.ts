@@ -6,6 +6,7 @@ import { getDefaultScenario } from "@/server/services/autopilot/getDefaultScenar
 import { processAutopilotReply } from "@/server/services/autopilot/processReply";
 import { dispatchOneOutboundMessage } from "@/server/services/messaging/dispatchOneOutbound";
 import { notifyAgentHandover } from "@/server/services/notifications/notifyAgentHandover";
+import { logger } from "@/lib/logger";
 
 function normalizePhoneFromTwilio(value: string | undefined): string | null {
   if (!value) return null;
@@ -281,14 +282,14 @@ export async function POST(request: NextRequest) {
           summary: result.lastInboundText ?? undefined,
         });
       } catch (e) {
-        console.error("[webhooks/twilio/whatsapp] notifyAgentHandover", e);
+        logger.error("[webhooks/twilio/whatsapp] notifyAgentHandover", e);
       }
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     const safeMessage = error instanceof Error ? error.message : "Internal error";
-    console.error("[webhooks/twilio/whatsapp]", safeMessage);
+    logger.error("[webhooks/twilio/whatsapp]", safeMessage);
     return NextResponse.json(
       { error: "Server misconfiguration", detail: safeMessage },
       { status: 500 }

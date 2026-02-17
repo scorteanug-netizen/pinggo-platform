@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isWorkspaceAccessError, requirePermission } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { generateInviteLifecycleLink } from "@/server/services/userLifecycleService";
+import { logger } from "@/lib/logger";
 
 const inviteUserSchema = z.object({
   email: z.string().trim().email(),
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

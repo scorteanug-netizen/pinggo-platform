@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { webhookIntakeSchema } from "@/lib/validations/leads";
 import { createLeadFromWebhook } from "@/server/services/intakeService";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     const lead = await createLeadFromWebhook(workspaceId, flowId, parsed.data);
     return NextResponse.json(lead);
   } catch (e) {
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

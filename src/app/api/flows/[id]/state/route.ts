@@ -5,6 +5,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { setFlowActiveState } from "@/server/services/flowWizardService";
+import { logger } from "@/lib/logger";
 
 const updateStateSchema = z.object({
   isActive: z.boolean(),
@@ -43,7 +44,7 @@ export async function POST(
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

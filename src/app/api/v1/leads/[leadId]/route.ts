@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 type RouteContext = {
   params: { leadId: string };
@@ -205,7 +206,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         : null,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -297,7 +298,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json(lead, { status: 200 });
   } catch (error) {
-    console.error("[leads PATCH]", error);
+    logger.error("[leads PATCH]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
@@ -353,7 +354,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[leads DELETE]", error);
+    logger.error("[leads DELETE]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

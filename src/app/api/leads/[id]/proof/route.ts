@@ -10,6 +10,7 @@ import type { ProofEventType } from "@/server/services/slaService";
 import { detectBreaches } from "@/server/services/slaService";
 import { detectEscalations } from "@/server/services/escalationService";
 import { MembershipRole } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 export async function POST(
   request: NextRequest,
@@ -46,7 +47,7 @@ export async function POST(
     if (e instanceof Error && e.message === "LEAD_NOT_FOUND") {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-    console.error(e);
+    logger.error(e);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

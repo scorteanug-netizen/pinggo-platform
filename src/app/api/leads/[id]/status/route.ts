@@ -6,6 +6,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { logger } from "@/lib/logger";
 
 const updateLeadStatusSchema = z.object({
   status: z.enum(["QUALIFIED", "NOT_QUALIFIED"]),
@@ -83,7 +84,7 @@ export async function POST(
     if (error instanceof Error && error.message === "LEAD_NOT_FOUND") {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

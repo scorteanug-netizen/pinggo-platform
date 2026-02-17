@@ -5,6 +5,7 @@ import {
 } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import {
+import { logger } from "@/lib/logger";
   mergeWizardStateIntoFlowConfig,
   readFlowWizardState,
   sanitizeRoutingUsersForWorkspace,
@@ -93,7 +94,7 @@ export async function POST(
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

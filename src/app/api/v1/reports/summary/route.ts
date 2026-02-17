@@ -4,6 +4,7 @@ import {
   isWorkspaceAccessError,
 } from "@/server/authMode";
 import { getReportsSummary, resolveReportDateRange } from "@/server/services/reportService";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (isWorkspaceAccessError(error)) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

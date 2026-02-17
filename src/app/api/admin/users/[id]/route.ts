@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCurrentUserEmail, isCurrentUserSuperAdmin } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import {
+import { logger } from "@/lib/logger";
   generateInviteLifecycleLink,
   generateResetPasswordLifecycleLink,
 } from "@/server/services/userLifecycleService";
@@ -270,7 +271,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     const message = error instanceof Error ? error.message : "Internal error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -295,7 +296,7 @@ export async function DELETE(
 
     return disableUserEverywhere(currentUserEmail, targetUserId);
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
