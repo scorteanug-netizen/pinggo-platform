@@ -6,6 +6,7 @@ import { getDefaultScenario } from "@/server/services/autopilot/getDefaultScenar
 import { processAutopilotReply } from "@/server/services/autopilot/processReply";
 import { dispatchOneOutboundMessage } from "@/server/services/messaging/dispatchOneOutbound";
 import { notifyAgentHandover } from "@/server/services/notifications/notifyAgentHandover";
+import { processAgentReply } from "@/server/services/notifications/processAgentReply";
 import { logger } from "@/lib/logger";
 
 function normalizePhoneFromTwilio(value: string | undefined): string | null {
@@ -72,6 +73,21 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // --- Agent reply check ---
+    const pendingReply = await prisma.pendingAgentReply.findFirst({
+      where: {
+        agentPhone: normalizedFrom,
+        status: "PENDING",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (pendingReply) {
+      const result = await processAgentReply(pendingReply, bodyTrimmed);
+      return NextResponse.json(result);
+    }
+    // --- End agent reply check ---
 
     const workspaceId = process.env.TWILIO_DEFAULT_WORKSPACE_ID?.trim();
     if (!workspaceId) {

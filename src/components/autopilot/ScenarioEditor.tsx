@@ -56,6 +56,7 @@ type ScenarioData = {
   language: string;
   tone: string | null;
   knowledgeBaseJson: Record<string, unknown> | null;
+  qualificationCriteria: { requiredSlots: string[] } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -549,6 +550,22 @@ export function ScenarioEditor({ scenario, members }: ScenarioEditorProps) {
                   Cate intrebari pune autopilotul inainte de handover
                 </p>
               </div>
+
+              {scenario.qualificationCriteria?.requiredSlots?.length ? (
+                <div className="space-y-2">
+                  <Label>Campuri obligatorii</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {scenario.qualificationCriteria.requiredSlots.map((slot) => (
+                      <Badge key={slot} variant="outline" className="text-xs font-mono">
+                        {slot}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Handover-ul se declanseaza cand toate aceste campuri sunt colectate.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="slaMinutes">SLA raspuns (minute)</Label>

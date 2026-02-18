@@ -78,6 +78,7 @@ async function listAssignableUserIds(tx: TxOrClient, workspaceId: string) {
       workspaceId,
       role: { in: ASSIGNABLE_ROLES },
       status: MembershipStatus.ACTIVE,
+      isAvailable: true,
     },
     select: { userId: true },
   });

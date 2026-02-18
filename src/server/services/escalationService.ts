@@ -64,6 +64,32 @@ async function hasEventSinceStageStart(params: {
   return Boolean(existing);
 }
 
+const PROOF_ACTION_TYPES = [
+  "message_sent",
+  "reply_received",
+  "meeting_created",
+  "call_logged",
+  "manual_proof_note",
+] as const;
+
+async function hasProofActionSinceStageStart(params: {
+  tx: TxOrClient;
+  workspaceId: string;
+  leadId: string;
+  stageStartedAt: Date;
+}) {
+  const existing = await params.tx.leadEvent.findFirst({
+    where: {
+      workspaceId: params.workspaceId,
+      leadId: params.leadId,
+      type: { in: [...PROOF_ACTION_TYPES] },
+      createdAt: { gte: params.stageStartedAt },
+    },
+    select: { id: true },
+  });
+  return Boolean(existing);
+}
+
 async function createReminder(params: {
   tx: TxOrClient;
   stage: RunningStage;
@@ -313,7 +339,14 @@ export async function detectEscalations(
         type: "reassigned",
         stageStartedAt: stage.startedAt,
       });
-      if (!alreadyTriggered) {
+      // Nu reasignăm dacă agentul a acționat deja (proof event existent)
+      const agentActed = await hasProofActionSinceStageStart({
+        tx,
+        workspaceId: stage.lead.workspaceId,
+        leadId: stage.leadId,
+        stageStartedAt: stage.startedAt,
+      });
+      if (!alreadyTriggered && !agentActed) {
         await createReassignment({
           tx,
           stage,

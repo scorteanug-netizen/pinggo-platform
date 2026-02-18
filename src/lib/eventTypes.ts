@@ -14,6 +14,14 @@ export const LeadEventType = {
 
   // Handover
   HANDOVER_REQUESTED: "handover_requested",
+  HANDOVER_NOTIFIED: "handover_notified",
+  HANDOVER_NOTIFICATION_BLOCKED: "handover_notification_blocked",
+  HANDOVER_NOTIFICATION_FAILED: "handover_notification_failed",
+
+  // Agent notifications
+  AGENT_CONFIRMED_HANDOVER: "agent_confirmed_handover",
+  AGENT_DECLINED_HANDOVER: "agent_declined_handover",
+  AGENT_OUTCOME_REPORTED: "agent_outcome_reported",
 
   // Messaging
   MESSAGE_QUEUED: "message_queued",
@@ -21,6 +29,11 @@ export const LeadEventType = {
 
   // Lead
   LEAD_RECEIVED: "lead_received",
+  LEAD_INCOMPLETE: "lead_incomplete",
+
+  // Integrations
+  FACEBOOK_LEADGEN_RECEIVED: "facebook_leadgen_received",
+  GOOGLE_CALENDAR_EVENT_CREATED: "google_calendar_event_created",
 } as const;
 
 export type LeadEventTypeValue = (typeof LeadEventType)[keyof typeof LeadEventType];

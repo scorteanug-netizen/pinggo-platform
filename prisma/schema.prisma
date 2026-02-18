@@ -33,6 +33,7 @@ enum LeadStatus {
   NOT_QUALIFIED
   SPAM
   ARCHIVED
+  INCOMPLETE
 }
 
 enum LeadSourceType {
@@ -44,6 +45,7 @@ enum LeadSourceType {
   MANUAL
   IMPORT
   EMAIL
+  FACEBOOK
 }
 
 enum ProofChannel {
@@ -114,6 +116,7 @@ model Workspace {
   autopilotPlaygroundSessions AutopilotPlaygroundSession[]
   outboundMessages        OutboundMessage[]
   settings                WorkspaceSettings?
+  pendingAgentReplies     PendingAgentReply[]
 
   @@index([disabledAt])
 }
@@ -132,6 +135,7 @@ model User {
   editedFlows    Flow[]               @relation("FlowLastEditor")
   notifications  Notification[]
   handoverScenarios AutopilotScenario[] @relation("ScenarioHandoverUser")
+  pendingAgentReplies PendingAgentReply[]
 
   accounts Account[]
   sessions Session[]
@@ -145,6 +149,7 @@ model Membership {
   invitedAt   DateTime?
   acceptedAt  DateTime?
   disabledAt  DateTime?
+  isAvailable Boolean          @default(true)
   createdAt   DateTime         @default(now())
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -182,6 +187,7 @@ model Lead {
   events            LeadEvent[]
   slaStageInstances SLAStageInstance[]
   bookings          Booking[]
+  pendingAgentReplies PendingAgentReply[]
 
   @@unique([workspaceId, sourceType, externalId])
   @@index([workspaceId, createdAt])
@@ -255,6 +261,7 @@ model AutopilotScenario {
   tone               String?
   knowledgeBaseJson  Json?
   handoverKeywordsJson Json?               // optional array of strings; falls back to platform defaults if null
+  qualificationCriteria Json?              // { requiredSlots: string[] } — auto-handover when all slots filled
 
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
@@ -394,6 +401,7 @@ model WorkspaceSettings {
   timezone             String    @default("Europe/Bucharest")
   schedule             Json?
   defaultFlowId        String?
+  onboardingJson       Json?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -527,4 +535,26 @@ model VerificationToken {
   expires    DateTime
 
   @@id([identifier, token])
+}
+
+model PendingAgentReply {
+  id           String   @id @default(cuid())
+  leadId       String
+  workspaceId  String
+  agentUserId  String
+  agentPhone   String
+  type         String   // "handover_confirmation" | "outcome_followup"
+  status       String   @default("PENDING") // PENDING | REPLIED | EXPIRED
+  replyValue   String?  // "1", "2", "3", etc.
+  createdAt    DateTime @default(now())
+  repliedAt    DateTime?
+  expiresAt    DateTime?
+
+  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent     User      @relation(fields: [agentUserId], references: [id], onDelete: Cascade)
+
+  @@index([agentPhone, status])
+  @@index([leadId, type, status])
+  @@index([status, expiresAt])
 }

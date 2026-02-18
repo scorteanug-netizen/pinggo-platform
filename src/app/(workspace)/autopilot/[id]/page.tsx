@@ -41,6 +41,7 @@ export default async function AutopilotScenarioDetailPage({
         language: true,
         tone: true,
         knowledgeBaseJson: true,
+        qualificationCriteria: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -91,6 +92,7 @@ export default async function AutopilotScenarioDetailPage({
         language: scenario.language,
         tone: scenario.tone,
         knowledgeBaseJson: scenario.knowledgeBaseJson as Record<string, unknown> | null,
+        qualificationCriteria: scenario.qualificationCriteria as { requiredSlots: string[] } | null,
         createdAt: scenario.createdAt.toISOString(),
         updatedAt: scenario.updatedAt.toISOString(),
       }}

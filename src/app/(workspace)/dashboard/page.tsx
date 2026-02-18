@@ -23,9 +23,12 @@ import {
 } from "@/components/dashboard/TeamPerformanceSection";
 import { TodayBookingsSection } from "@/components/dashboard/TodayBookingsSection";
 import { TodayBookingsCardSkeleton } from "@/components/dashboard/TodayBookingsCard";
+import { CriticalLeadsWidget } from "@/components/dashboard/CriticalLeadsWidget";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { getCurrentUserAndWorkspace } from "@/server/authMode";
+import { autoDetectCompletedSteps, getOnboardingState } from "@/server/services/onboardingService";
+import { OnboardingChecklist } from "./OnboardingChecklist";
 
 export default async function DashboardPage() {
   const context = await getCurrentUserAndWorkspace().catch(() => null);
@@ -36,6 +39,10 @@ export default async function DashboardPage() {
   const permissions = context.permissions;
   const canViewLeads = Boolean(permissions?.canViewLeads);
   const canViewTeamPerformance = canViewLeads && context.appRole !== "AGENT";
+
+  const [onboardingState] = await Promise.all([
+    autoDetectCompletedSteps(context.workspaceId).then(() => getOnboardingState(context.workspaceId)),
+  ]);
 
   // DUMMY DATA - Task-uri viitoare vor aduce date reale
   const stats = {
@@ -85,6 +92,11 @@ export default async function DashboardPage() {
   ];
 
   if (canViewLeads) {
+    widgets.push({
+      id: "critical_alerts",
+      node: <CriticalLeadsWidget />,
+    });
+
     widgets.push({
       id: "breach_alerts",
       node: (
@@ -199,6 +211,8 @@ export default async function DashboardPage() {
         iconBgColor="bg-orange-50"
         iconColor="text-orange-600"
       />
+
+      <OnboardingChecklist state={onboardingState} />
 
       <DashboardCustomizableLayout userRole={context.appRole} widgets={widgets} />
     </div>

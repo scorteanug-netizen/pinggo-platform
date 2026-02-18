@@ -7,6 +7,7 @@ import { getCurrentUserAndWorkspace } from "@/server/authMode";
 import { prisma } from "@/server/db";
 import { getUnreadNotificationsCount } from "@/server/services/notificationService";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { AvailabilityToggle } from "./AvailabilityToggle";
 
 type WorkspaceTopbarProps = {
   bypassed?: boolean;
@@ -63,6 +64,16 @@ export async function WorkspaceTopbar({ bypassed: _bypassed }: WorkspaceTopbarPr
         })
       : 0;
 
+  const membershipAvailability =
+    context?.userId && context.workspaceId
+      ? await prisma.membership
+          .findUnique({
+            where: { userId_workspaceId: { userId: context.userId, workspaceId: context.workspaceId } },
+            select: { isAvailable: true },
+          })
+          .then((m) => m?.isAvailable ?? true)
+      : true;
+
   return (
     <header className="border-b border-slate-200/80 bg-white/85 px-4 py-3 backdrop-blur md:px-6">
       <div className="mx-auto flex w-full max-w-6xl items-center gap-2 md:gap-3">
@@ -89,8 +100,9 @@ export async function WorkspaceTopbar({ bypassed: _bypassed }: WorkspaceTopbarPr
               </span>
             ) : null}
           </Link>
+          <AvailabilityToggle initial={membershipAvailability} />
           <span className="hidden text-sm font-medium text-slate-700 sm:inline">{displayEmail}</span>
-          <span className="rounded-full border border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-2.5 py-1 text-xs font-extrabold text-orange-700">
+          <span className="hidden rounded-full border border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-2.5 py-1 text-xs font-extrabold text-orange-700 sm:inline">
             {context?.appRole ?? "Conectat"}
           </span>
           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-orange-100 bg-white shadow-[0_4px_12px_rgba(255,86,33,0.16)]">

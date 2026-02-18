@@ -15,6 +15,8 @@ import {
   OutboundMessageStatus,
   Prisma,
 } from "@prisma/client";
+import { createCalendarEvent, getWorkspaceGoogleCalendarIntegration } from "@/server/services/googleCalendarService";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/server/db";
 import { getDefaultScenario } from "./getDefaultScenario";
 import { aiPlanner } from "./aiPlanner";
@@ -231,6 +233,7 @@ type AiTransitionArgs = {
   };
   recentEvents?: Array<{ eventType: string; text?: string; at?: string }>;
   recentOutboundTexts?: string[];
+  requiredSlots?: string[];
 };
 
 async function resolveAiTransition(args: AiTransitionArgs): Promise<TransitionResult> {
@@ -258,6 +261,7 @@ async function resolveAiTransition(args: AiTransitionArgs): Promise<TransitionRe
     leadContext: args.leadContext,
     recentEvents: args.recentEvents,
     recentOutboundTexts: args.recentOutboundTexts,
+    requiredSlots: args.requiredSlots,
   });
 
   const newQIndex = currentQIndex + 1;
@@ -299,6 +303,7 @@ type PhaseAPayload = {
     id: string;
     maxQuestions: number;
     mode: string;
+    scenarioType?: string;
     handoverUserId: string | null;
     aiPrompt: string;
     agentName: string | null;
@@ -306,6 +311,7 @@ type PhaseAPayload = {
     companyDescription: string | null;
     offerSummary: string | null;
     calendarLinkRaw: string | null;
+    qualificationCriteria: unknown;
   };
   scenarioId: string;
   stateBefore: AutopilotStateJson;
@@ -356,6 +362,7 @@ async function phaseA(tx: TxClient, leadId: string, text: string): Promise<Phase
       companyDescription: true,
       offerSummary: true,
       calendarLinkRaw: true,
+      qualificationCriteria: true,
     },
   });
   if (!scenario) {
@@ -374,6 +381,7 @@ async function phaseA(tx: TxClient, leadId: string, text: string): Promise<Phase
         companyDescription: true,
         offerSummary: true,
         calendarLinkRaw: true,
+        qualificationCriteria: true,
       },
     });
   }
@@ -437,8 +445,10 @@ async function phaseB(payload: PhaseAPayload): Promise<TransitionResult> {
   const maxQuestions = scenario.maxQuestions ?? 2;
   const mode = scenario.mode;
 
+  let transition: TransitionResult;
+
   if (mode === AutopilotScenarioMode.AI) {
-    return resolveAiTransition({
+    transition = await resolveAiTransition({
       stateBefore,
       text,
       maxQuestions,
@@ -459,15 +469,32 @@ async function phaseB(payload: PhaseAPayload): Promise<TransitionResult> {
       },
       recentEvents: recentEvents ?? [],
       recentOutboundTexts: recentOutboundTexts ?? [],
+      requiredSlots: (scenario.qualificationCriteria as { requiredSlots?: string[] } | null)?.requiredSlots ?? [],
     });
+  } else {
+    transition = resolveRulesTransition(
+      stateBefore,
+      text,
+      maxQuestions,
+      lead?.firstName ?? null,
+      { companyName: scenario.companyName, calendarLinkRaw: scenario.calendarLinkRaw }
+    );
   }
-  return resolveRulesTransition(
-    stateBefore,
-    text,
-    maxQuestions,
-    lead?.firstName ?? null,
-    { companyName: scenario.companyName, calendarLinkRaw: scenario.calendarLinkRaw }
-  );
+
+  // qualificationCriteria enforcement: force handover when all required slots are filled
+  const criteria = scenario.qualificationCriteria as { requiredSlots?: string[] } | null;
+  const requiredSlots = criteria?.requiredSlots ?? [];
+  if (requiredSlots.length > 0 && !transition.terminal) {
+    const mergedAnswers = { ...stateBefore.answers, ...transition.answersUpdate };
+    const allFilled = requiredSlots.every(
+      (slot) => typeof mergedAnswers[slot] === "string" && mergedAnswers[slot].trim().length > 0
+    );
+    if (allFilled) {
+      transition = { ...transition, nextNode: "handover", terminal: true };
+    }
+  }
+
+  return transition;
 }
 
 /** Phase C: DB-only. Persist transition, create outbound/events. */
@@ -618,5 +645,64 @@ export async function processAutopilotReply(params: {
 
   const transition = await phaseB(payload);
 
-  return prisma.$transaction((tx) => phaseC(tx, payload, transition));
+  const result = await prisma.$transaction((tx) => phaseC(tx, payload, transition));
+
+  // Google Calendar booking: create event after handover for QUALIFY_AND_BOOK scenarios
+  if (
+    result &&
+    transition.terminal &&
+    payload.scenario &&
+    payload.scenario.scenarioType === AutopilotScenarioType.QUALIFY_AND_BOOK
+  ) {
+    try {
+      const gcConfig = await getWorkspaceGoogleCalendarIntegration(payload.run.workspaceId);
+      if (gcConfig) {
+        const answers = { ...payload.stateBefore.answers, ...transition.answersUpdate };
+        const leadName = answers.name || payload.lead?.firstName || "Lead";
+        const preferredTime = answers.preferredTime || "";
+        const now = new Date();
+        const startTime = preferredTime ? new Date(preferredTime) : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        if (isNaN(startTime.getTime())) {
+          startTime.setTime(now.getTime() + 24 * 60 * 60 * 1000);
+        }
+        const endTime = new Date(startTime.getTime() + 30 * 60 * 1000);
+
+        const { eventId, meetLink } = await createCalendarEvent(payload.run.workspaceId, {
+          summary: `Pinggo: ${leadName}`,
+          description: `Lead: ${leadName}\nPhone: ${answers.phone || ""}\nEmail: ${answers.email || ""}\nService: ${answers.service || ""}`,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          attendeeEmail: answers.email || undefined,
+        });
+
+        // Create Booking row and log event
+        await prisma.$transaction(async (tx) => {
+          await tx.booking.create({
+            data: {
+              leadId,
+              provider: "GOOGLE_CALENDAR",
+              eventId,
+              meetLink,
+              startAt: startTime,
+              endAt: endTime,
+            },
+          });
+
+          await tx.eventLog.create({
+            data: {
+              leadId,
+              eventType: "google_calendar_event_created",
+              payload: { eventId, meetLink, calendarEmail: gcConfig.accountEmail } as unknown as Prisma.InputJsonValue,
+              occurredAt: new Date(),
+            },
+          });
+        });
+      }
+    } catch (err) {
+      // Log but don't fail the handover
+      logger.error({ err, leadId }, "Failed to create Google Calendar event after handover");
+    }
+  }
+
+  return result;
 }

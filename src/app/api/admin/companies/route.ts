@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserEmail, isCurrentUserSuperAdmin } from "@/server/authMode";
 import { prisma } from "@/server/db";
+import { setupDefaultFlowForWorkspace } from "@/server/services/flowService";
 import { logger } from "@/lib/logger";
 
 const createCompanySchema = z.object({
@@ -53,6 +54,11 @@ export async function POST(request: NextRequest) {
         id: true,
         name: true,
       },
+    });
+
+    // Setup flow implicit activ cu SLA-uri de bază
+    await setupDefaultFlowForWorkspace(workspace.id, currentUser.id).catch((err) => {
+      logger.warn({ err }, "Could not setup default flow for workspace");
     });
 
     return NextResponse.json({ ok: true, workspace }, { status: 201 });

@@ -40,6 +40,8 @@ export type AiPlannerInput = {
   recentEvents?: Array<{ eventType: string; text?: string; at?: string }>;
   /** Last N outbound message texts */
   recentOutboundTexts?: string[];
+  /** Required slots from qualificationCriteria — when set, AI should collect these */
+  requiredSlots?: string[];
 };
 
 export type AiPlannerOutput = {
@@ -119,7 +121,9 @@ function buildMessages(input: AiPlannerInput) {
     "- One short message only (max 2-3 sentences). End with EXACTLY one question.",
     `- You have ${remainingQuestions} question(s) left before handover. If remainingQuestions <= 0, set shouldHandover=true.`,
     "- Language: Romanian. Friendly, natural tone.",
-    "- Do not invent company facts. Store name, phone, email, service, preferredTime in answers when the lead provides them.",
+    input.requiredSlots?.length
+      ? `- Collect these required fields: ${input.requiredSlots.join(", ")}. Store each in "answers". Set shouldHandover=true ONLY when ALL are collected.`
+      : "- Do not invent company facts. Store name, phone, email, service, preferredTime in answers when the lead provides them.",
     intentOverride ? `- Lead intent (from keywords): ${intentOverride}. Use it; do not ask the lead to choose options.` : "",
     "",
     "Company context:",

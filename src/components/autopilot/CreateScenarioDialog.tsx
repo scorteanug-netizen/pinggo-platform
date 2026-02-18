@@ -22,8 +22,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Wrench } from "lucide-react";
+import { ArrowLeft, FileText, Sparkles, Wrench } from "lucide-react";
 import { DEFAULT_AUTOPILOT_PROMPT_RO } from "@/server/services/autopilot/defaultPrompts";
+import { AUTOPILOT_TEMPLATES, type AutopilotTemplate } from "@/server/services/autopilot/templates";
 
 interface CreateScenarioDialogProps {
   open: boolean;
@@ -35,20 +36,51 @@ export function CreateScenarioDialog({ open, onOpenChange, workspaceId }: Create
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
+  // Step state
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedTemplate, setSelectedTemplate] = useState<AutopilotTemplate | null>(null);
+
+  // Form fields
   const [name, setName] = useState("");
   const [scenarioType, setScenarioType] = useState("QUALIFY_ONLY");
   const [mode, setMode] = useState("RULES");
   const [aiPrompt, setAiPrompt] = useState("");
   const [maxQuestions, setMaxQuestions] = useState(2);
+  const [qualificationCriteria, setQualificationCriteria] = useState<{ requiredSlots: string[] } | null>(null);
 
   const isAi = mode === "AI";
 
   function resetForm() {
+    setStep(1);
+    setSelectedTemplate(null);
     setName("");
     setScenarioType("QUALIFY_ONLY");
     setMode("RULES");
     setAiPrompt("");
     setMaxQuestions(2);
+    setQualificationCriteria(null);
+  }
+
+  function handleSelectTemplate(template: AutopilotTemplate) {
+    setSelectedTemplate(template);
+    setName(template.label);
+    setScenarioType(template.scenarioType);
+    setMode(template.mode);
+    setAiPrompt(template.aiPrompt);
+    setMaxQuestions(template.maxQuestions);
+    setQualificationCriteria(template.qualificationCriteria);
+    setStep(2);
+  }
+
+  function handleSelectBlank() {
+    setSelectedTemplate(null);
+    setName("");
+    setScenarioType("QUALIFY_ONLY");
+    setMode("RULES");
+    setAiPrompt("");
+    setMaxQuestions(2);
+    setQualificationCriteria(null);
+    setStep(2);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,6 +100,7 @@ export function CreateScenarioDialog({ open, onOpenChange, workspaceId }: Create
           aiPrompt: isAi && aiPrompt.trim() ? aiPrompt.trim() : undefined,
           maxQuestions,
           isDefault: false,
+          qualificationCriteria,
         }),
       });
 
@@ -84,7 +117,13 @@ export function CreateScenarioDialog({ open, onOpenChange, workspaceId }: Create
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) resetForm();
+        onOpenChange(v);
+      }}
+    >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -92,129 +131,195 @@ export function CreateScenarioDialog({ open, onOpenChange, workspaceId }: Create
             Scenariu nou
           </DialogTitle>
           <DialogDescription>
-            Configureaza un scenariu de raspuns automat
+            {step === 1
+              ? "Alege un template sau porneste de la zero"
+              : "Configureaza scenariul"}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="create-name">Nume scenariu *</Label>
-            <Input
-              id="create-name"
-              placeholder="ex: Calificare Lead Imobiliare"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Type */}
-          <div className="space-y-2">
-            <Label htmlFor="create-type">Tip scenariu</Label>
-            <Select value={scenarioType} onValueChange={setScenarioType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="QUALIFY_ONLY">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="violet" className="text-xs">Calificare</Badge>
-                    <span>Intrebari + handover</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="QUALIFY_AND_BOOK">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="orange" className="text-xs">Booking</Badge>
-                    <span>Calificare + programare</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Mode */}
-          <div className="space-y-2">
-            <Label>Mod functionare</Label>
+        {step === 1 ? (
+          /* ---- STEP 1: Template picker ---- */
+          <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setMode("RULES")}
-                className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
-                  !isAi
-                    ? "border-violet-500 bg-violet-50/50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
-              >
-                <Wrench className={`w-4 h-4 ${!isAi ? "text-violet-600" : "text-slate-400"}`} />
-                <div>
-                  <div className="font-semibold text-sm text-slate-900">Reguli</div>
-                  <div className="text-xs text-slate-500">Flux predefinit</div>
-                </div>
-              </button>
+              {AUTOPILOT_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => handleSelectTemplate(tpl)}
+                  className="flex flex-col gap-2 rounded-xl border-2 border-slate-200 bg-white p-4 text-left transition-all hover:border-violet-400 hover:shadow-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-500" />
+                    <span className="text-sm font-semibold text-slate-900">{tpl.label}</span>
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed">{tpl.description}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {tpl.qualificationCriteria.requiredSlots.map((slot) => (
+                      <Badge key={slot} variant="outline" className="text-xs font-mono">
+                        {slot}
+                      </Badge>
+                    ))}
+                  </div>
+                </button>
+              ))}
 
+              {/* Blank option */}
               <button
                 type="button"
-                onClick={() => {
-                  setMode("AI");
-                  if (!aiPrompt.trim()) setAiPrompt(DEFAULT_AUTOPILOT_PROMPT_RO);
-                }}
-                className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
-                  isAi
-                    ? "border-orange-500 bg-orange-50/50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
+                onClick={handleSelectBlank}
+                className="flex flex-col gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 text-left transition-all hover:border-slate-400 hover:shadow-sm"
               >
-                <Sparkles className={`w-4 h-4 ${isAi ? "text-orange-600" : "text-slate-400"}`} />
-                <div>
-                  <div className="font-semibold text-sm text-slate-900">AI Script</div>
-                  <div className="text-xs text-slate-500">Prompt personalizat</div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <span className="text-sm font-semibold text-slate-900">Blank</span>
                 </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Porneste de la zero — configureaza totul manual.
+                </p>
               </button>
             </div>
           </div>
+        ) : (
+          /* ---- STEP 2: Form ---- */
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Back button */}
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Schimba template
+            </button>
 
-          {/* AI Prompt (only when AI mode) */}
-          {isAi && (
+            {/* Selected template badge */}
+            {selectedTemplate && (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Badge variant="violet" className="text-xs">{selectedTemplate.label}</Badge>
+                <span>—</span>
+                <span>{selectedTemplate.qualificationCriteria.requiredSlots.join(", ")}</span>
+              </div>
+            )}
+
+            {/* Name */}
             <div className="space-y-2">
-              <Label htmlFor="create-aiPrompt">AI Script / Prompt</Label>
-              <Textarea
-                id="create-aiPrompt"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={`Esti asistent virtual pentru [Companie].\nTonul este prietenos.\nColecteaza: serviciu dorit, preferinta de zi.`}
-                rows={5}
-                className="font-mono text-sm"
+              <Label htmlFor="create-name">Nume scenariu *</Label>
+              <Input
+                id="create-name"
+                placeholder="ex: Calificare Lead Imobiliare"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
               />
             </div>
-          )}
 
-          {/* Max questions */}
-          <div className="space-y-2">
-            <Label htmlFor="create-maxQuestions">Nr. maxim intrebari</Label>
-            <Input
-              id="create-maxQuestions"
-              type="number"
-              min={1}
-              max={10}
-              value={maxQuestions}
-              onChange={(e) => setMaxQuestions(parseInt(e.target.value) || 2)}
-            />
-          </div>
+            {/* Type */}
+            <div className="space-y-2">
+              <Label htmlFor="create-type">Tip scenariu</Label>
+              <Select value={scenarioType} onValueChange={setScenarioType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="QUALIFY_ONLY">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="violet" className="text-xs">Calificare</Badge>
+                      <span>Intrebari + handover</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="QUALIFY_AND_BOOK">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="orange" className="text-xs">Booking</Badge>
+                      <span>Calificare + programare</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Anuleaza
-            </Button>
-            <Button
-              type="submit"
-              disabled={submitting || !name.trim()}
-              className="bg-orange-500 hover:bg-orange-600 text-white"
-            >
-              {submitting ? "Se creeaza..." : "Creeaza scenariu"}
-            </Button>
-          </DialogFooter>
-        </form>
+            {/* Mode */}
+            <div className="space-y-2">
+              <Label>Mod functionare</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMode("RULES")}
+                  className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                    !isAi
+                      ? "border-violet-500 bg-violet-50/50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <Wrench className={`w-4 h-4 ${!isAi ? "text-violet-600" : "text-slate-400"}`} />
+                  <div>
+                    <div className="font-semibold text-sm text-slate-900">Reguli</div>
+                    <div className="text-xs text-slate-500">Flux predefinit</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("AI");
+                    if (!aiPrompt.trim()) setAiPrompt(DEFAULT_AUTOPILOT_PROMPT_RO);
+                  }}
+                  className={`flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                    isAi
+                      ? "border-orange-500 bg-orange-50/50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <Sparkles className={`w-4 h-4 ${isAi ? "text-orange-600" : "text-slate-400"}`} />
+                  <div>
+                    <div className="font-semibold text-sm text-slate-900">AI Script</div>
+                    <div className="text-xs text-slate-500">Prompt personalizat</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* AI Prompt (only when AI mode) */}
+            {isAi && (
+              <div className="space-y-2">
+                <Label htmlFor="create-aiPrompt">AI Script / Prompt</Label>
+                <Textarea
+                  id="create-aiPrompt"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder={`Esti asistent virtual pentru [Companie].\nTonul este prietenos.\nColecteaza: serviciu dorit, preferinta de zi.`}
+                  rows={5}
+                  className="font-mono text-sm"
+                />
+              </div>
+            )}
+
+            {/* Max questions */}
+            <div className="space-y-2">
+              <Label htmlFor="create-maxQuestions">Nr. maxim intrebari</Label>
+              <Input
+                id="create-maxQuestions"
+                type="number"
+                min={1}
+                max={10}
+                value={maxQuestions}
+                onChange={(e) => setMaxQuestions(parseInt(e.target.value) || 2)}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Anuleaza
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting || !name.trim()}
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                {submitting ? "Se creeaza..." : "Creeaza scenariu"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

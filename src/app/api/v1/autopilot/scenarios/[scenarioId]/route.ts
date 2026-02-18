@@ -39,6 +39,10 @@ const patchSchema = z.object({
   tone: z.string().trim().min(1).nullable().optional(),
   knowledgeBaseJson: z.record(z.unknown()).nullable().optional(),
   handoverKeywordsJson: z.array(z.string()).nullable().optional(),
+  qualificationCriteria: z
+    .object({ requiredSlots: z.array(z.string()) })
+    .nullable()
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -66,6 +70,7 @@ function serialize(scenario: {
   tone: string | null;
   knowledgeBaseJson: unknown;
   handoverKeywordsJson: unknown;
+  qualificationCriteria: unknown;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -90,6 +95,7 @@ function serialize(scenario: {
     tone: scenario.tone,
     knowledgeBaseJson: scenario.knowledgeBaseJson,
     handoverKeywordsJson: scenario.handoverKeywordsJson,
+    qualificationCriteria: scenario.qualificationCriteria ?? null,
     createdAt: scenario.createdAt.toISOString(),
     updatedAt: scenario.updatedAt.toISOString(),
   };
@@ -158,6 +164,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           ...(updates.tone !== undefined && { tone: updates.tone }),
           ...(updates.knowledgeBaseJson !== undefined && { knowledgeBaseJson: updates.knowledgeBaseJson ?? undefined }),
           ...(updates.handoverKeywordsJson !== undefined && { handoverKeywordsJson: updates.handoverKeywordsJson ?? undefined }),
+          ...(updates.qualificationCriteria !== undefined && { qualificationCriteria: updates.qualificationCriteria ?? undefined }),
         },
       });
     });

@@ -26,6 +26,10 @@ const createSchema = z.object({
   handoverUserId: z.string().trim().min(1).optional(),
   bookingConfigJson: z.record(z.unknown()).optional(),
   isDefault: z.boolean().default(false),
+  qualificationCriteria: z
+    .object({ requiredSlots: z.array(z.string()) })
+    .nullable()
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -44,6 +48,7 @@ function serialize(scenario: {
   handoverUserId: string | null;
   bookingConfigJson: unknown;
   isDefault: boolean;
+  qualificationCriteria: unknown;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -59,6 +64,7 @@ function serialize(scenario: {
     handoverUserId: scenario.handoverUserId,
     bookingConfigJson: scenario.bookingConfigJson,
     isDefault: scenario.isDefault,
+    qualificationCriteria: scenario.qualificationCriteria ?? null,
     createdAt: scenario.createdAt.toISOString(),
     updatedAt: scenario.updatedAt.toISOString(),
   };
@@ -123,6 +129,7 @@ export async function POST(request: NextRequest) {
           handoverUserId: data.handoverUserId ?? null,
           bookingConfigJson: data.bookingConfigJson ?? undefined,
           isDefault: data.isDefault,
+          qualificationCriteria: data.qualificationCriteria ?? undefined,
         },
       });
     });

@@ -76,6 +76,9 @@ const EVENT_TYPE_LABEL: Record<string, string> = {
   handover_notified: "Agent notificat",
   handover_notification_failed: "Notificare agent esuata",
   handover_notification_blocked: "Notificare agent blocata",
+  agent_confirmed_handover: "Agent a confirmat preluarea",
+  agent_declined_handover: "Agent nu poate prelua",
+  agent_outcome_reported: "Agent a raportat rezultatul",
 };
 
 const ASSIGNMENT_METHOD_LABEL: Record<string, string> = {
@@ -90,7 +93,7 @@ const SPAM_REASON_LABEL: Record<string, string> = {
   spam_keyword: "Mesaj suspect",
 };
 
-type TimelineTone = "neutral" | "info" | "success" | "warning" | "danger";
+type TimelineTone = "neutral" | "info" | "success" | "warning" | "danger" | "ai" | "agent";
 
 type TimelineDetail = {
   label: string;
@@ -232,6 +235,20 @@ function getTimelineToneClasses(tone: TimelineTone) {
     return {
       dotClass: "bg-rose-500",
       chipClass: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+  // AI / Autopilot events — violet
+  if (tone === "ai") {
+    return {
+      dotClass: "bg-violet-500",
+      chipClass: "border-violet-200 bg-violet-50 text-violet-700",
+    };
+  }
+  // Agent manual actions — green
+  if (tone === "agent") {
+    return {
+      dotClass: "bg-green-500",
+      chipClass: "border-green-200 bg-green-50 text-green-700",
     };
   }
   return {
@@ -469,6 +486,44 @@ function createTimelinePresentation(params: {
     };
   }
 
+  if (event.type === "agent_confirmed_handover") {
+    const agentLabel = getUserLabel(userLabelById, readString(payload, "agentUserId"));
+    addDetail("Agent", agentLabel);
+    addDetail("Canal", readString(payload, "channel"));
+    return {
+      title: toEventTypeLabel(event.type),
+      subtitle: agentLabel ? `${agentLabel} a confirmat preluarea` : "Agent a confirmat preluarea",
+      details,
+      tone: "success" as const,
+    };
+  }
+
+  if (event.type === "agent_declined_handover") {
+    const agentLabel = getUserLabel(userLabelById, readString(payload, "agentUserId"));
+    addDetail("Agent", agentLabel);
+    addDetail("Canal", readString(payload, "channel"));
+    return {
+      title: toEventTypeLabel(event.type),
+      subtitle: agentLabel ? `${agentLabel} nu poate prelua acum` : "Agent nu poate prelua acum",
+      details,
+      tone: "danger" as const,
+    };
+  }
+
+  if (event.type === "agent_outcome_reported") {
+    const agentLabel = getUserLabel(userLabelById, readString(payload, "agentUserId"));
+    const outcomeLabel = readString(payload, "outcomeLabel");
+    addDetail("Agent", agentLabel);
+    addDetail("Rezultat", outcomeLabel);
+    addDetail("Canal", readString(payload, "channel"));
+    return {
+      title: toEventTypeLabel(event.type),
+      subtitle: outcomeLabel ? `Rezultat: ${outcomeLabel}` : "Agent a raportat rezultatul",
+      details,
+      tone: "info" as const,
+    };
+  }
+
   if (event.type === "whatsapp_inbound") {
     addDetail("Mesaj", truncateText(readString(payload, "text"), 140));
     addDetail("De la", readString(payload, "from"));
@@ -486,7 +541,7 @@ function createTimelinePresentation(params: {
       title: toEventTypeLabel(event.type),
       subtitle: "Mesaj primit de fluxul automat",
       details,
-      tone: "neutral" as const,
+      tone: "ai" as const,
     };
   }
 
@@ -496,9 +551,9 @@ function createTimelinePresentation(params: {
     addDetail("Text", truncateText(readString(payload, "text"), 140));
     return {
       title: toEventTypeLabel(event.type),
-      subtitle: "Autopilot continua conversatia",
+      subtitle: "Autopilot continuă conversația",
       details,
-      tone: "info" as const,
+      tone: "ai" as const,
     };
   }
 
@@ -506,9 +561,9 @@ function createTimelinePresentation(params: {
     addDetail("Mesaj", truncateText(readString(payload, "text"), 140));
     return {
       title: toEventTypeLabel(event.type),
-      subtitle: "Clientul a primit urmatorul pas",
+      subtitle: "Clientul a primit link-ul de programare",
       details,
-      tone: "success" as const,
+      tone: "ai" as const,
     };
   }
 
@@ -517,9 +572,9 @@ function createTimelinePresentation(params: {
     addDetail("Operator", actorLabel);
     return {
       title: toEventTypeLabel(event.type),
-      subtitle: "Contact initial trimis catre lead",
+      subtitle: "Contact trimis către lead",
       details,
-      tone: "success" as const,
+      tone: "agent" as const,
     };
   }
 
@@ -527,9 +582,9 @@ function createTimelinePresentation(params: {
     addDetail("Mesaj", truncateText(readString(payload, "message"), 140));
     return {
       title: toEventTypeLabel(event.type),
-      subtitle: "Lead-ul a raspuns",
+      subtitle: "Lead-ul a răspuns",
       details,
-      tone: "success" as const,
+      tone: "agent" as const,
     };
   }
 
@@ -538,9 +593,9 @@ function createTimelinePresentation(params: {
     addDetail("Operator", actorLabel);
     return {
       title: toEventTypeLabel(event.type),
-      subtitle: "Dovada de progres inregistrata",
+      subtitle: "Acțiune manuală înregistrată",
       details,
-      tone: "info" as const,
+      tone: "agent" as const,
     };
   }
 
@@ -552,11 +607,13 @@ function createTimelinePresentation(params: {
     event.type === "escalation_manager_alert"
   ) {
     addDetail("Operator", actorLabel);
+    const isEscalation = event.type.startsWith("escalation_");
+    const isAutopilot = event.type.startsWith("autopilot_");
     return {
       title: toEventTypeLabel(event.type),
-      subtitle: "Eveniment automat de proces",
+      subtitle: isEscalation ? "Escaladare automată" : "Eveniment automat Autopilot",
       details,
-      tone: event.type.startsWith("escalation_") ? ("warning" as const) : ("neutral" as const),
+      tone: isEscalation ? ("warning" as const) : isAutopilot ? ("ai" as const) : ("neutral" as const),
     };
   }
 
@@ -836,7 +893,7 @@ export default async function LeadDetailPage({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Detalii lead</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Detalii lead</h1>
           <p className="text-sm text-slate-600">Vizualizare SLA, timeline si actiuni rapide.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -851,8 +908,8 @@ export default async function LeadDetailPage({
             variant="outline"
             size="default"
           />
-          <Button variant="outline" asChild>
-            <Link href="/leads">Inapoi la leaduri</Link>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/leads">← Leaduri</Link>
           </Button>
         </div>
       </div>

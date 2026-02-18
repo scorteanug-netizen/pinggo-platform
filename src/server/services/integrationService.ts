@@ -12,6 +12,7 @@ const WEBHOOK_INGEST_SOURCE_TYPES: LeadSourceType[] = [
   "EMAIL",
   "WHATSAPP",
   "API",
+  "FACEBOOK",
 ];
 const WEBHOOK_INGEST_SOURCE_TYPES_FALLBACK: LeadSourceType[] = ["WEBHOOK", "EMAIL", "API"];
 
@@ -263,6 +264,7 @@ export async function getWorkspaceIntegrationStatus(workspaceId: string) {
     whatsappProvider: readWebhookActive(map.get("WHATSAPP_PROVIDER")),
     slack: readWebhookActive(map.get("SLACK")),
     googleCalendar: readWebhookActive(map.get("GOOGLE_CALENDAR")),
+    facebookLeadAds: readWebhookActive(map.get("FACEBOOK_LEAD_ADS")),
   };
 }
 

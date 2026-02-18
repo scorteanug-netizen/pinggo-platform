@@ -66,11 +66,17 @@ export async function notifyAgentHandover(args: {
   const link = `${baseUrl}/app/leads/${leadId}`;
 
   const body = [
-    "Lead nou de preluat",
+    "\uD83D\uDD14 Lead nou de preluat",
+    "",
     `Nume: ${leadName}`,
     `Tel: ${leadTel}`,
     `Email: ${leadEmail}`,
     `Motiv: ${motiv}`,
+    "",
+    "Raspunde:",
+    "1 \u2014 Am preluat",
+    "2 \u2014 Nu pot acum",
+    "",
     `Link: ${link}`,
   ].join("\n");
 
@@ -92,6 +98,18 @@ export async function notifyAgentHandover(args: {
           toPhone: agentPhone,
           scenarioId,
         } as Prisma.InputJsonValue,
+      },
+    });
+
+    await prisma.pendingAgentReply.create({
+      data: {
+        leadId,
+        workspaceId: lead.workspaceId,
+        agentUserId: handoverUserId,
+        agentPhone: agentPhone,
+        type: "handover_confirmation",
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
       },
     });
   } catch (error) {

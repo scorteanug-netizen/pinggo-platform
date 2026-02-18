@@ -11,7 +11,7 @@ import { startStage } from "@/server/services/slaService";
 import { logger } from "@/lib/logger";
 
 const ingestPayloadSchema = z.object({
-  source: z.enum(["WEBHOOK", "FORM", "CRM", "EMAIL", "WHATSAPP", "API"]),
+  source: z.enum(["WEBHOOK", "FORM", "CRM", "EMAIL", "WHATSAPP", "API", "FACEBOOK"]),
   externalId: z.string().trim().min(1).max(191).optional(),
   identity: z
     .object({
@@ -41,6 +41,7 @@ const SOURCE_TYPE_MAP: Record<IngestPayload["source"], LeadSourceType> = {
   EMAIL: "EMAIL",
   WHATSAPP: "WHATSAPP",
   API: "API",
+  FACEBOOK: "FACEBOOK",
 };
 
 const FIRST_STAGE_KEY_CANDIDATES = new Set([
@@ -110,6 +111,11 @@ function pickInitialStageDefinition(definitions: SLAStageDefinition[]) {
   if (byName) return byName;
 
   return [...definitions].sort((left, right) => left.key.localeCompare(right.key))[0] ?? null;
+}
+
+function isValidPhone(phone: string | null): boolean {
+  if (!phone) return false;
+  return phone.replace(/\D/g, "").length >= 7;
 }
 
 function isLeadSourceTypeEnumMismatch(error: unknown) {
@@ -361,6 +367,27 @@ async function createNewLead(params: {
       type: "lead_received",
       rawPayload,
     });
+
+    // Phone validation: mark as INCOMPLETE if no valid phone (except WHATSAPP leads)
+    if (!isValidPhone(identity.phone) && sourceType !== "WHATSAPP") {
+      await tx.lead.update({
+        where: { id: lead.id },
+        data: { status: "INCOMPLETE" },
+      });
+
+      await appendLeadEvent({
+        tx,
+        workspaceId,
+        leadId: lead.id,
+        type: "lead_incomplete",
+        rawPayload: {
+          reason: "missing_or_invalid_phone",
+          phone: identity.phone,
+        } as unknown as Prisma.InputJsonValue,
+      });
+
+      return lead.id;
+    }
 
     await maybeAssignAndStartFirstStage(tx, workspaceId, lead.id);
 
