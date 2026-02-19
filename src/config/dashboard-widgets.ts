@@ -51,6 +51,15 @@ export const DASHBOARD_WIDGET_REGISTRY = {
     minSize: { w: 6, h: 2 },
     category: "metrics",
   },
+  critical_alerts: {
+    id: "critical_alerts",
+    name: "Critical Alerts",
+    description: "Lead-uri critice neacoperite care necesita actiune imediata",
+    icon: AlertTriangle,
+    defaultSize: { w: 12, h: 2 },
+    minSize: { w: 6, h: 2 },
+    category: "metrics",
+  },
   breach_alerts: {
     id: "breach_alerts",
     name: "Breach Alerts",
