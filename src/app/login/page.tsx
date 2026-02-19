@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./LoginForm";
 import { getCurrentUserEmail } from "@/server/authMode";
@@ -9,5 +10,9 @@ export default async function LoginPage() {
   } catch {
     // Auth/DB not configured — show login form
   }
-  return <LoginForm />;
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
 }

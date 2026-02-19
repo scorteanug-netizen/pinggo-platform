@@ -113,14 +113,14 @@ async function processLeadgenEvent(leadgenId: string, pageId: string) {
           email: identity.email ?? undefined,
           phone: identity.phone ?? undefined,
           company: identity.company ?? undefined,
-          meta: leadData as Record<string, unknown>,
+          meta: leadData as unknown as import("@prisma/client").Prisma.InputJsonValue,
         },
         update: {
           name: identity.name ?? undefined,
           email: identity.email ?? undefined,
           phone: identity.phone ?? undefined,
           company: identity.company ?? undefined,
-          meta: leadData as Record<string, unknown>,
+          meta: leadData as unknown as import("@prisma/client").Prisma.InputJsonValue,
         },
       });
     }

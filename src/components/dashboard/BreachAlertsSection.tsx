@@ -2,7 +2,7 @@ import { MembershipRole } from "@prisma/client";
 import { prisma } from "@/server/db";
 import { BreachAlertsBanner, type CriticalBreach } from "./BreachAlertsBanner";
 
-const SOURCE_LABEL = {
+const SOURCE_LABEL: Record<string, string> = {
   WEBHOOK: "Webhook",
   FORM: "Website",
   CRM: "CRM",
@@ -11,7 +11,8 @@ const SOURCE_LABEL = {
   MANUAL: "Manual",
   IMPORT: "Import",
   EMAIL: "Email",
-} as const;
+  FACEBOOK: "Facebook",
+};
 
 type BreachAlertsSectionProps = {
   workspaceId: string;

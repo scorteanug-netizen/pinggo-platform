@@ -904,7 +904,7 @@ export default async function LeadDetailPage({
             leadId={lead.id}
             lead={{
               firstName: lead.firstName ?? lead.identity?.name?.split(" ")[0] ?? null,
-              lastName: lead.lastName ?? lead.identity?.name?.split(" ").slice(1).join(" ") || null,
+              lastName: lead.lastName ?? (lead.identity?.name?.split(" ").slice(1).join(" ") || null),
               email: lead.email ?? lead.identity?.email ?? null,
               phone: lead.phone ?? lead.identity?.phone ?? null,
             }}
@@ -925,8 +925,8 @@ export default async function LeadDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-3">
-          <p>Email: {lead.email ?? lead.identity?.email || "-"}</p>
-          <p>Telefon: {lead.phone ?? lead.identity?.phone || "-"}</p>
+          <p>Email: {lead.email ?? lead.identity?.email ?? "-"}</p>
+          <p>Telefon: {lead.phone ?? lead.identity?.phone ?? "-"}</p>
           <p>Companie: {lead.identity?.company || "-"}</p>
           <p>Owner: {lead.ownerUser?.name || lead.ownerUser?.email || "-"}</p>
           <p>Status: {STATUS_LABEL[lead.status]}</p>

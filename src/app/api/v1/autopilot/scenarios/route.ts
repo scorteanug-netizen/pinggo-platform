@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
           slaMinutes: data.slaMinutes,
           maxQuestions: data.maxQuestions,
           handoverUserId: data.handoverUserId ?? null,
-          bookingConfigJson: data.bookingConfigJson ?? undefined,
+          bookingConfigJson: (data.bookingConfigJson ?? undefined) as unknown as import("@prisma/client").Prisma.InputJsonValue | undefined,
           isDefault: data.isDefault,
-          qualificationCriteria: data.qualificationCriteria ?? undefined,
+          qualificationCriteria: (data.qualificationCriteria ?? undefined) as unknown as import("@prisma/client").Prisma.InputJsonValue | undefined,
         },
       });
     });

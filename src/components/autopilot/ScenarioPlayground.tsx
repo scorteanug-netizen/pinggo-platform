@@ -290,7 +290,7 @@ export function ScenarioPlayground({ scenarioId }: ScenarioPlaygroundProps) {
           </Button>
         </div>
 
-        {(lastResult || lastRawResponse) && (
+        {(lastResult || !!lastRawResponse) && (
           <div className="border-t border-slate-100">
             <button
               type="button"

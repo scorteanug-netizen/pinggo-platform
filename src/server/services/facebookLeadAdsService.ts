@@ -119,8 +119,8 @@ export async function connectFacebookPage(
 
   await prisma.integration.upsert({
     where: { workspaceId_type: { workspaceId, type: INTEGRATION_TYPE } },
-    create: { workspaceId, type: INTEGRATION_TYPE, config: config as unknown as Record<string, unknown> },
-    update: { config: config as unknown as Record<string, unknown> },
+    create: { workspaceId, type: INTEGRATION_TYPE, config: config as unknown as import("@prisma/client").Prisma.InputJsonValue },
+    update: { config: config as unknown as import("@prisma/client").Prisma.InputJsonValue },
   });
 }
 

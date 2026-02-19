@@ -556,7 +556,7 @@ export function ScenarioEditor({ scenario, members }: ScenarioEditorProps) {
                   <Label>Campuri obligatorii</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {scenario.qualificationCriteria.requiredSlots.map((slot) => (
-                      <Badge key={slot} variant="outline" className="text-xs font-mono">
+                      <Badge key={slot} variant="gray" className="text-xs font-mono">
                         {slot}
                       </Badge>
                     ))}

@@ -6,12 +6,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 
 export default async function FlowsPage() {
-  const orgId = await getCurrentOrgId();
-  if (!orgId) return null;
+  const workspaceId = await getCurrentOrgId();
+  if (!workspaceId) return null;
 
   const flows = await prisma.flow.findMany({
-    where: { orgId },
-    include: { nodes: true, edges: true },
+    where: { workspaceId },
     orderBy: { createdAt: "desc" },
   });
 
@@ -39,7 +38,7 @@ export default async function FlowsPage() {
                     </span>
                   )}
                   <span className="ml-2 text-sm text-muted-foreground">
-                    {f.nodes.length} noduri, {f.edges.length} muchii
+                    {f.isActive ? "Activ" : "Draft"}
                   </span>
                 </div>
                 <Button variant="outline" size="sm" asChild>

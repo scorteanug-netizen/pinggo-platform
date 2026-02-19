@@ -274,7 +274,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
                 changed: ["phone"],
                 oldPhone,
                 newPhone,
-              } as Record<string, unknown>,
+              } as unknown as import("@prisma/client").Prisma.InputJsonValue,
             },
           });
         }

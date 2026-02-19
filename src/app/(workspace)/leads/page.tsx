@@ -54,6 +54,9 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
   NOT_QUALIFIED: "Neeligibil",
   SPAM: "Spam",
   ARCHIVED: "Arhivat",
+  WON: "Câștigat",
+  LOST: "Pierdut",
+  INCOMPLETE: "Incomplet",
 };
 
 const SOURCE_LABEL: Record<LeadSourceType, string> = {
@@ -65,6 +68,7 @@ const SOURCE_LABEL: Record<LeadSourceType, string> = {
   MANUAL: "Manual",
   API: "API",
   IMPORT: "Import",
+  FACEBOOK: "Facebook",
 };
 
 function getParamValue(value: string | string[] | undefined) {

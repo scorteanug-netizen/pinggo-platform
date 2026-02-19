@@ -305,7 +305,7 @@ type PhaseAPayload = {
     mode: string;
     scenarioType?: string;
     handoverUserId: string | null;
-    aiPrompt: string;
+    aiPrompt: string | null;
     agentName: string | null;
     companyName: string | null;
     companyDescription: string | null;
@@ -453,7 +453,7 @@ async function phaseB(payload: PhaseAPayload): Promise<TransitionResult> {
       text,
       maxQuestions,
       firstName: lead?.firstName ?? null,
-      aiPrompt: scenario.aiPrompt,
+      aiPrompt: scenario.aiPrompt ?? "",
       scenarioContext: {
         agentName: scenario.agentName,
         companyName: scenario.companyName,
@@ -512,12 +512,12 @@ async function phaseC(
     answers: newAnswers,
     questionIndex: transition.newQuestionIndex,
   };
-  let newStatus = run.status;
+  let newStatus = run.status as AutopilotRunStatus;
   if (transition.terminal) newStatus = AutopilotRunStatus.HANDED_OVER;
 
   if (scenario.mode === AutopilotScenarioMode.AI) {
     const resolvedPrompt = buildScenarioPrompt({
-      aiPrompt: scenario.aiPrompt,
+      aiPrompt: scenario.aiPrompt ?? "",
       agentName: scenario.agentName,
       companyName: scenario.companyName,
       companyDescription: scenario.companyDescription,

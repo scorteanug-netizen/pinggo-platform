@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserAndWorkspace, isWorkspaceAccessError } from "@/server/authMode";
 import {

@@ -25,6 +25,7 @@ const SOURCE_LABEL: Record<LeadSourceType, string> = {
   MANUAL: "Manual",
   IMPORT: "Import",
   EMAIL: "Email",
+  FACEBOOK: "Facebook",
 };
 
 const STATUS_CONFIG: Record<
@@ -37,6 +38,9 @@ const STATUS_CONFIG: Record<
   NOT_QUALIFIED: { label: "Neeligibil", variant: "gray" },
   SPAM: { label: "Spam", variant: "red" },
   ARCHIVED: { label: "Arhivat", variant: "gray" },
+  WON: { label: "Câștigat", variant: "green" },
+  LOST: { label: "Pierdut", variant: "red" },
+  INCOMPLETE: { label: "Incomplet", variant: "orange" },
 };
 
 type RecentLeadsSectionProps = {

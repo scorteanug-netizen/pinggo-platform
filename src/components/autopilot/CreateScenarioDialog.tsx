@@ -155,7 +155,7 @@ export function CreateScenarioDialog({ open, onOpenChange, workspaceId }: Create
                   <p className="text-xs text-slate-500 leading-relaxed">{tpl.description}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {tpl.qualificationCriteria.requiredSlots.map((slot) => (
-                      <Badge key={slot} variant="outline" className="text-xs font-mono">
+                      <Badge key={slot} variant="gray" className="text-xs font-mono">
                         {slot}
                       </Badge>
                     ))}

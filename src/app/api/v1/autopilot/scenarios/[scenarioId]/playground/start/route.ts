@@ -137,7 +137,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           run = await tx.autopilotRun.update({
             where: { id: run.id },
             data: initialRunData,
-            select: { id: true },
+            select: { id: true, status: true },
           });
         } else {
           run = await tx.autopilotRun.create({
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
               workspaceId,
               ...initialRunData,
             },
-            select: { id: true },
+            select: { id: true, status: true },
           });
         }
       }

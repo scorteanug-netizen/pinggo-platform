@@ -1,6 +1,7 @@
 import {
   AutopilotScenarioMode,
   AutopilotScenarioType,
+  type Prisma,
 } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -145,14 +146,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
       return tx.autopilotScenario.update({
         where: { id: scenarioId },
-        data: {
+        data: ({
           ...(updates.name !== undefined && { name: updates.name }),
           ...(updates.scenarioType !== undefined && { scenarioType: updates.scenarioType }),
           ...(updates.mode !== undefined && { mode: updates.mode }),
           ...(updates.aiPrompt !== undefined && { aiPrompt: updates.aiPrompt }),
           ...(updates.slaMinutes !== undefined && { slaMinutes: updates.slaMinutes }),
           ...(updates.maxQuestions !== undefined && { maxQuestions: updates.maxQuestions }),
-          ...(updates.handoverUserId !== undefined && { handoverUserId: updates.handoverUserId }),
+          ...(updates.handoverUserId !== undefined && { handoverUserId: updates.handoverUserId as string | null }),
           ...(updates.bookingConfigJson !== undefined && { bookingConfigJson: updates.bookingConfigJson ?? undefined }),
           ...(updates.isDefault !== undefined && { isDefault: updates.isDefault }),
           ...(updates.agentName !== undefined && { agentName: updates.agentName }),
@@ -165,7 +166,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           ...(updates.knowledgeBaseJson !== undefined && { knowledgeBaseJson: updates.knowledgeBaseJson ?? undefined }),
           ...(updates.handoverKeywordsJson !== undefined && { handoverKeywordsJson: updates.handoverKeywordsJson ?? undefined }),
           ...(updates.qualificationCriteria !== undefined && { qualificationCriteria: updates.qualificationCriteria ?? undefined }),
-        },
+        }) as Prisma.AutopilotScenarioUpdateInput,
       });
     });
 

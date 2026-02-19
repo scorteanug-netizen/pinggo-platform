@@ -59,10 +59,10 @@ export async function markStepDone(workspaceId: string, step: OnboardingStep): P
     where: { workspaceId },
     create: {
       workspaceId,
-      onboardingJson: current as unknown as Record<string, unknown>,
+      onboardingJson: current as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
     update: {
-      onboardingJson: current as unknown as Record<string, unknown>,
+      onboardingJson: current as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });
 
@@ -147,10 +147,10 @@ export async function autoDetectCompletedSteps(workspaceId: string): Promise<voi
     where: { workspaceId },
     create: {
       workspaceId,
-      onboardingJson: current as unknown as Record<string, unknown>,
+      onboardingJson: current as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
     update: {
-      onboardingJson: current as unknown as Record<string, unknown>,
+      onboardingJson: current as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });
 }

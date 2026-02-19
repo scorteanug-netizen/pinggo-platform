@@ -101,8 +101,8 @@ export async function connectGoogleCalendar(
 
   await prisma.integration.upsert({
     where: { workspaceId_type: { workspaceId, type: INTEGRATION_TYPE } },
-    create: { workspaceId, type: INTEGRATION_TYPE, config: config as unknown as Record<string, unknown> },
-    update: { config: config as unknown as Record<string, unknown> },
+    create: { workspaceId, type: INTEGRATION_TYPE, config: config as unknown as import("@prisma/client").Prisma.InputJsonValue },
+    update: { config: config as unknown as import("@prisma/client").Prisma.InputJsonValue },
   });
 }
 
@@ -147,7 +147,7 @@ async function refreshAccessTokenIfNeeded(
 
   await prisma.integration.update({
     where: { workspaceId_type: { workspaceId, type: INTEGRATION_TYPE } },
-    data: { config: updatedConfig as unknown as Record<string, unknown> },
+    data: { config: updatedConfig as unknown as import("@prisma/client").Prisma.InputJsonValue },
   });
 
   return updatedConfig;

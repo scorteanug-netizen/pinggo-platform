@@ -37,6 +37,7 @@ const SOURCE_LABEL: Record<LeadSourceType, string> = {
   MANUAL: "Manual",
   IMPORT: "Import",
   EMAIL: "Email",
+  FACEBOOK: "Facebook",
 };
 
 export type ActivityEventType =

@@ -69,7 +69,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
               payload: {
                 fromScenarioId: run.scenarioId,
                 toScenarioId: scenario.id,
-              } as Record<string, unknown>,
+              } as unknown as import("@prisma/client").Prisma.InputJsonValue,
             })),
           });
         }
