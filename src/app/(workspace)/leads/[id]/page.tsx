@@ -21,6 +21,9 @@ const STATUS_LABEL: Record<LeadStatus, string> = {
   NOT_QUALIFIED: "Neeligibil",
   SPAM: "Spam",
   ARCHIVED: "Arhivat",
+  WON: "Câștigat",
+  LOST: "Pierdut",
+  INCOMPLETE: "Incomplet",
 };
 
 const SOURCE_LABEL: Record<string, string> = {
