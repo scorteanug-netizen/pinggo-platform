@@ -3,8 +3,8 @@ import { MembershipRole } from "@prisma/client";
 import { escalateSchema } from "@/lib/validations/leads";
 import { addEscalationEvent } from "@/server/services/leadService";
 import { prisma } from "@/server/db";
-import {
 import { logger } from "@/lib/logger";
+import {
   requirePermission,
   isWorkspaceAccessError,
 } from "@/server/authMode";

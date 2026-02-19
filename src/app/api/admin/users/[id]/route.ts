@@ -3,8 +3,8 @@ import { MembershipStatus } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUserEmail, isCurrentUserSuperAdmin } from "@/server/authMode";
 import { prisma } from "@/server/db";
-import {
 import { logger } from "@/lib/logger";
+import {
   generateInviteLifecycleLink,
   generateResetPasswordLifecycleLink,
 } from "@/server/services/userLifecycleService";
